@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useGame } from '../context/GameContext';
+import { useGame, type RoundInfo } from '../context/GameContext';
 import { useSignalREvent } from '../hooks/useSignalR';
 import { HubEvents } from '../services/signalr';
 
@@ -9,11 +9,12 @@ const RADIUS = 80;
 const CIRCUMFERENCE = 2 * Math.PI * RADIUS;
 
 export default function CountdownPage() {
-  const { countdownStartAt, setPhase } = useGame();
+  const { countdownStartAt, setPhase, setCurrentRound } = useGame();
   const [secondsLeft, setSecondsLeft] = useState(COUNTDOWN_SECONDS);
 
-  // Transition to answering when RoundStarted fires (authoritative signal from server)
-  useSignalREvent(HubEvents.RoundStarted, () => {
+  // RoundStarted is the authoritative signal — capture round data then transition
+  useSignalREvent(HubEvents.RoundStarted, (payload) => {
+    setCurrentRound(payload as RoundInfo);
     setPhase('answering');
   });
 
