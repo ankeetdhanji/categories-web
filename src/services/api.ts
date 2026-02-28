@@ -32,7 +32,12 @@ export const api = {
     }),
 
   getGame: (gameId: string) =>
-    request<unknown>(`/api/games/${gameId}`),
+    request<{
+      id: string;
+      joinCode: string;
+      hostPlayerId: string;
+      players: { id: string; displayName: string; isGuest: boolean; totalScore: number }[];
+    }>(`/api/games/${gameId}`),
 
   submitAnswers: (gameId: string, playerId: string, answers: Record<string, string>) =>
     request<void>(`/api/games/${gameId}/rounds/current/answers`, {
