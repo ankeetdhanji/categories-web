@@ -16,6 +16,7 @@ export default function LobbyPage() {
   const { gameId, joinCode, playerId, isHost, players, setPlayers, addPlayer, removePlayer, setPhase, setCountdownStartAt } = useGame();
   const [copied, setCopied] = useState(false);
   const [starting, setStarting] = useState(false);
+  const [startError, setStartError] = useState('');
   const [floaters, setFloaters] = useState<FloatingReaction[]>([]);
   const [nextId, setNextId] = useState(0);
   const [showReactions, setShowReactions] = useState(false);
@@ -70,8 +71,11 @@ export default function LobbyPage() {
   async function handleStart() {
     if (!gameId || !playerId) return;
     setStarting(true);
+    setStartError('');
     try {
       await api.startGame(gameId, playerId);
+    } catch (err) {
+      setStartError(err instanceof Error ? err.message : 'Failed to start game.');
     } finally {
       setStarting(false);
     }
@@ -269,6 +273,9 @@ export default function LobbyPage() {
             <div className="w-full h-14 rounded-[14px] bg-[#111827] border border-[#263244] flex items-center justify-center">
               <span className="text-sm text-[#6b7280]">Waiting for the host to start…</span>
             </div>
+          )}
+          {startError && (
+            <p className="text-center text-xs text-[#f87171]">{startError}</p>
           )}
           <p className="text-center text-xs text-[#6b7280]">
             {isHost ? 'Game starts with a 5-second countdown' : ''}
