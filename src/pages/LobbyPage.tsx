@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { useGame, type Player } from '../context/GameContext';
 import { useSignalREvent } from '../hooks/useSignalR';
 import { api } from '../services/api';
-import { HubEvents } from '../services/signalr';
+import { startConnection, joinGameGroup, leaveGameGroup, HubEvents } from '../services/signalr';
 
 const REACTIONS = ['🔥', '👏', '😂', '🎉', '💀'];
 
@@ -19,7 +19,18 @@ export default function LobbyPage() {
   const [floaters, setFloaters] = useState<FloatingReaction[]>([]);
   const [nextId, setNextId] = useState(0);
 
-  // Load initial player list
+  // Connect to SignalR and join game group
+  useEffect(() => {
+    if (!gameId) return;
+    startConnection()
+      .then(() => joinGameGroup(gameId))
+      .catch(console.error);
+    return () => {
+      leaveGameGroup(gameId).catch(console.error);
+    };
+  }, [gameId]);
+
+  // Load initial player list (refreshes state if navigating back)
   useEffect(() => {
     if (!gameId) return;
     api.getGame(gameId).then((game) => {

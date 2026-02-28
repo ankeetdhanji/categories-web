@@ -3,7 +3,7 @@ import { api } from '../services/api';
 import { useGame } from '../context/GameContext';
 
 export default function HomePage() {
-  const { setGameId, setJoinCode, setPlayer, setHost, setPhase } = useGame();
+  const { setGameId, setJoinCode, setPlayer, setHost, setPhase, setPlayers } = useGame();
   const [joinCode, setJoinCodeInput] = useState('');
   const [joinError, setJoinError] = useState('');
   const [isJoining, setIsJoining] = useState(false);
@@ -19,11 +19,12 @@ export default function HomePage() {
     setIsJoining(true);
     try {
       const playerId = crypto.randomUUID();
-      const { id } = await api.joinGame(code, playerId, 'Guest');
+      const res = await api.joinGame(code, playerId, 'Guest');
       setPlayer(playerId, 'Guest');
-      setGameId(id);
+      setGameId(res.gameId);
       setJoinCode(code);
       setHost(false);
+      setPlayers(res.players.map((p) => ({ ...p, isHost: false })));
       setPhase('lobby');
     } catch {
       setJoinError('Game not found. Check the code and try again.');
@@ -36,11 +37,12 @@ export default function HomePage() {
     setIsCreating(true);
     try {
       const playerId = crypto.randomUUID();
-      const { id, joinCode: code } = await api.createGame(playerId, 'Host');
+      const res = await api.createGame(playerId, 'Host');
       setPlayer(playerId, 'Host');
-      setGameId(id);
-      setJoinCode(code);
+      setGameId(res.gameId);
+      setJoinCode(res.joinCode);
       setHost(true);
+      setPlayers([{ id: playerId, displayName: 'Host', isHost: true, isGuest: false, totalScore: 0 }]);
       setPhase('lobby');
     } finally {
       setIsCreating(false);

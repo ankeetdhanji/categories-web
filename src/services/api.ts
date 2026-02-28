@@ -14,13 +14,16 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
 
 export const api = {
   createGame: (hostPlayerId: string, displayName: string) =>
-    request<{ id: string; joinCode: string }>('/api/games', {
+    request<{ gameId: string; joinCode: string }>('/api/games', {
       method: 'POST',
       body: JSON.stringify({ hostPlayerId, displayName }),
     }),
 
   joinGame: (joinCode: string, playerId: string, displayName: string) =>
-    request<{ id: string }>(`/api/games/${joinCode}/join`, {
+    request<{
+      gameId: string;
+      players: { id: string; displayName: string; isGuest: boolean; totalScore: number }[];
+    }>(`/api/games/${joinCode}/join`, {
       method: 'POST',
       body: JSON.stringify({ playerId, displayName }),
     }),
