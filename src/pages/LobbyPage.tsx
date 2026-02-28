@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { useGame, type Player } from '../context/GameContext';
 import { useSignalREvent } from '../hooks/useSignalR';
 import { api } from '../services/api';
-import { startConnection, joinGameGroup, leaveGameGroup, sendReaction, HubEvents } from '../services/signalr';
+import { startConnection, joinGameGroup, sendReaction, HubEvents } from '../services/signalr';
 
 const REACTIONS = ['🔥', '👏', '😂', '🎉', '💀'];
 
@@ -26,7 +26,6 @@ export default function LobbyPage() {
     startConnection()
       .then(() => joinGameGroup(gameId))
       .catch(console.error);
-    return () => { leaveGameGroup(gameId).catch(console.error); };
   }, [gameId]);
 
   useEffect(() => {
