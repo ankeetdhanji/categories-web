@@ -3,6 +3,7 @@ import * as signalR from '@microsoft/signalr';
 const HUB_URL = import.meta.env.VITE_SIGNALR_HUB_URL ?? 'http://localhost:5000/hubs/game';
 
 let connection: signalR.HubConnection | null = null;
+let connectingPromise: Promise<void> | null = null;
 
 export function getConnection(): signalR.HubConnection {
   if (!connection) {
@@ -17,9 +18,10 @@ export function getConnection(): signalR.HubConnection {
 
 export async function startConnection(): Promise<void> {
   const conn = getConnection();
-  if (conn.state === signalR.HubConnectionState.Disconnected) {
-    await conn.start();
-  }
+  if (conn.state === signalR.HubConnectionState.Connected) return;
+  if (connectingPromise) return connectingPromise;
+  connectingPromise = conn.start().finally(() => { connectingPromise = null; });
+  return connectingPromise;
 }
 
 export async function joinGameGroup(gameId: string): Promise<void> {
