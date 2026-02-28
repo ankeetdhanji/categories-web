@@ -30,6 +30,10 @@ export async function leaveGameGroup(gameId: string): Promise<void> {
   await getConnection().invoke('LeaveGameGroup', gameId);
 }
 
+export async function sendReaction(gameId: string, emoji: string): Promise<void> {
+  await getConnection().invoke('SendReaction', gameId, emoji);
+}
+
 // --- Event constants matching GameHubEvents on the server ---
 export const HubEvents = {
   PlayerJoined: 'PlayerJoined',

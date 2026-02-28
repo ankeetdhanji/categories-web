@@ -8,6 +8,7 @@ export default function HomePage() {
   const [joinError, setJoinError] = useState('');
   const [isJoining, setIsJoining] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
+  const [createError, setCreateError] = useState('');
 
   async function handleJoin() {
     const code = joinCode.trim().toUpperCase();
@@ -35,6 +36,7 @@ export default function HomePage() {
 
   async function handleCreate() {
     setIsCreating(true);
+    setCreateError('');
     try {
       const playerId = crypto.randomUUID();
       const res = await api.createGame(playerId, 'Host');
@@ -44,6 +46,8 @@ export default function HomePage() {
       setHost(true);
       setPlayers([{ id: playerId, displayName: 'Host', isHost: true, isGuest: false, totalScore: 0 }]);
       setPhase('lobby');
+    } catch (err) {
+      setCreateError(err instanceof Error ? err.message : 'Failed to create game. Is the server running?');
     } finally {
       setIsCreating(false);
     }
@@ -197,6 +201,9 @@ export default function HomePage() {
               )}
             </button>
 
+            {createError && (
+              <p className="text-center text-xs" style={{ color: '#f87171' }}>{createError}</p>
+            )}
             <p className="text-center text-xs" style={{ color: '#6b7280' }}>
               Play as guest or sign in later
             </p>
