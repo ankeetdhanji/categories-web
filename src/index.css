@@ -1,0 +1,20 @@
+@import "tailwindcss";
+
+/* Design system: dark-first, neon-accented "game night" aesthetic */
+:root {
+  --color-bg: #0B0F14;
+  --color-surface: #141920;
+  --color-neon-primary: #7C3AED;  /* purple */
+  --color-neon-accent: #06B6D4;   /* cyan */
+  --color-text: #F8FAFC;
+  --color-text-muted: #94A3B8;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  background-color: var(--color-bg);
+  color: var(--color-text);
+  font-family: system-ui, -apple-system, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
