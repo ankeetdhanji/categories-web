@@ -7,18 +7,17 @@ on:
     branches: [main]
 
 jobs:
-  build-and-test:
+  build:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
 
-      - name: Setup Node
-        uses: actions/setup-node@v4
+      - uses: actions/setup-node@v4
         with:
-          node-version: '22'
+          node-version: '23'
           cache: 'npm'
 
-      - name: Install
+      - name: Install dependencies
         run: npm ci
 
       - name: Type check
@@ -26,3 +25,12 @@ jobs:
 
       - name: Build
         run: npm run build
+        env:
+          VITE_API_BASE_URL: ${{ vars.VITE_API_BASE_URL || 'http://localhost:5000' }}
+          VITE_SIGNALR_HUB_URL: ${{ vars.VITE_SIGNALR_HUB_URL || 'http://localhost:5000/hubs/game' }}
+          VITE_FIREBASE_API_KEY: ${{ secrets.VITE_FIREBASE_API_KEY }}
+          VITE_FIREBASE_AUTH_DOMAIN: categories-game-app.firebaseapp.com
+          VITE_FIREBASE_PROJECT_ID: categories-game-app
+          VITE_FIREBASE_STORAGE_BUCKET: categories-game-app.firebasestorage.app
+          VITE_FIREBASE_MESSAGING_SENDER_ID: '552375143983'
+          VITE_FIREBASE_APP_ID: 1:552375143983:web:e1a02d25c8d5f8f062c0da
