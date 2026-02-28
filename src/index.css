@@ -1,13 +1,16 @@
 @import "tailwindcss";
 
-/* Design system: dark-first, neon-accented "game night" aesthetic */
+/* Design system: dark-first, blue-accented "game night" aesthetic */
 :root {
   --color-bg: #0B0F14;
-  --color-surface: #141920;
-  --color-neon-primary: #7C3AED;  /* purple */
-  --color-neon-accent: #06B6D4;   /* cyan */
-  --color-text: #F8FAFC;
-  --color-text-muted: #94A3B8;
+  --color-surface: #111827;
+  --color-surface-input: #161f2b;
+  --color-border: #263244;
+  --color-primary: #3b82f6;
+  --color-primary-glow: rgba(59, 130, 246, 0.3);
+  --color-text: #e5e7eb;
+  --color-text-muted: #9ca3af;
+  --color-text-subtle: #6b7280;
 }
 
 body {
@@ -15,6 +18,6 @@ body {
   min-height: 100vh;
   background-color: var(--color-bg);
   color: var(--color-text);
-  font-family: system-ui, -apple-system, sans-serif;
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
   -webkit-font-smoothing: antialiased;
 }
