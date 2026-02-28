@@ -13,7 +13,7 @@ interface FloatingReaction {
 }
 
 export default function LobbyPage() {
-  const { gameId, joinCode, playerId, isHost, players, setPlayers, addPlayer, removePlayer, setPhase } = useGame();
+  const { gameId, joinCode, playerId, isHost, players, setPlayers, addPlayer, removePlayer, setPhase, setCountdownStartAt } = useGame();
   const [copied, setCopied] = useState(false);
   const [starting, setStarting] = useState(false);
   const [floaters, setFloaters] = useState<FloatingReaction[]>([]);
@@ -45,7 +45,11 @@ export default function LobbyPage() {
 
   useSignalREvent(HubEvents.PlayerJoined, (player) => { addPlayer(player as Player); });
   useSignalREvent(HubEvents.PlayerLeft, (data) => { removePlayer((data as { playerId: string }).playerId); });
-  useSignalREvent(HubEvents.GameCountdown, () => { setPhase('countdown'); });
+  useSignalREvent(HubEvents.GameCountdown, (data) => {
+    const { startAt } = data as { startAt: string };
+    setCountdownStartAt(startAt);
+    setPhase('countdown');
+  });
   useSignalREvent(HubEvents.EmojiReaction, (data) => { spawnFloater((data as { emoji: string }).emoji); });
 
   function spawnFloater(emoji: string) {

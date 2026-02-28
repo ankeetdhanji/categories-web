@@ -27,6 +27,7 @@ interface GameState {
   isHost: boolean;
   phase: GamePhase;
   players: Player[];
+  countdownStartAt: string | null;
 }
 
 interface GameContextValue extends GameState {
@@ -38,6 +39,7 @@ interface GameContextValue extends GameState {
   setPlayers: (players: Player[]) => void;
   addPlayer: (player: Player) => void;
   removePlayer: (playerId: string) => void;
+  setCountdownStartAt: (startAt: string) => void;
   reset: () => void;
 }
 
@@ -49,6 +51,7 @@ const initialState: GameState = {
   isHost: false,
   phase: 'home',
   players: [],
+  countdownStartAt: null,
 };
 
 const GameContext = createContext<GameContextValue | null>(null);
@@ -72,6 +75,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
       ...s,
       players: s.players.filter((p) => p.id !== playerId),
     })),
+    setCountdownStartAt: (countdownStartAt) => setState((s) => ({ ...s, countdownStartAt })),
     reset: () => setState(initialState),
   };
 
