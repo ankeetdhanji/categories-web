@@ -29,12 +29,10 @@ export default function CountdownPage() {
         const remaining = (new Date(countdownStartAt).getTime() - Date.now()) / 1000;
         const clamped = Math.max(0, Math.ceil(remaining));
         setSecondsLeft(clamped);
-        if (clamped <= 0) setPhase('answering');
+        // RoundStarted drives the transition — don't race the timer against it
       } else {
-        setSecondsLeft((s) => {
-          if (s <= 1) { setPhase('answering'); return 0; }
-          return s - 1;
-        });
+        setSecondsLeft((s) => Math.max(0, s - 1));
+        // RoundStarted drives the transition — don't race the timer against it
       }
     }
 

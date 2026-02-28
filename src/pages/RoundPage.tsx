@@ -1,11 +1,11 @@
 import { useEffect, useRef, useState } from 'react';
-import { useGame } from '../context/GameContext';
+import { useGame, type RoundInfo } from '../context/GameContext';
 import { useSignalREvent } from '../hooks/useSignalR';
 import { api } from '../services/api';
 import { HubEvents } from '../services/signalr';
 
 export default function RoundPage() {
-  const { gameId, playerId, currentRound, setPhase } = useGame();
+  const { gameId, playerId, currentRound, setPhase, setCurrentRound } = useGame();
   const [answers, setAnswers] = useState<Record<string, string>>({});
   const [submitted, setSubmitted] = useState(false);
   const [secondsLeft, setSecondsLeft] = useState<number | null>(null);
@@ -14,6 +14,11 @@ export default function RoundPage() {
   // Round ended by server
   useSignalREvent(HubEvents.RoundEnded, () => {
     setPhase('results');
+  });
+
+  // Fallback: if CountdownPage unmounted before RoundStarted arrived, catch it here
+  useSignalREvent(HubEvents.RoundStarted, (payload) => {
+    if (!currentRound) setCurrentRound(payload as RoundInfo);
   });
 
   // Timer synced to server endsAt
