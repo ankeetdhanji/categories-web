@@ -19,6 +19,14 @@ export interface Player {
   totalScore: number;
 }
 
+export interface RoundInfo {
+  roundNumber: number;
+  letter: string;
+  categories: string[];
+  startedAt: string | null;
+  endsAt: string | null;
+}
+
 interface GameState {
   gameId: string | null;
   joinCode: string | null;
@@ -28,6 +36,7 @@ interface GameState {
   phase: GamePhase;
   players: Player[];
   countdownStartAt: string | null;
+  currentRound: RoundInfo | null;
 }
 
 interface GameContextValue extends GameState {
@@ -40,6 +49,7 @@ interface GameContextValue extends GameState {
   addPlayer: (player: Player) => void;
   removePlayer: (playerId: string) => void;
   setCountdownStartAt: (startAt: string) => void;
+  setCurrentRound: (round: RoundInfo) => void;
   reset: () => void;
 }
 
@@ -52,6 +62,7 @@ const initialState: GameState = {
   phase: 'home',
   players: [],
   countdownStartAt: null,
+  currentRound: null,
 };
 
 const GameContext = createContext<GameContextValue | null>(null);
@@ -76,6 +87,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
       players: s.players.filter((p) => p.id !== playerId),
     })),
     setCountdownStartAt: (countdownStartAt) => setState((s) => ({ ...s, countdownStartAt })),
+    setCurrentRound: (currentRound) => setState((s) => ({ ...s, currentRound })),
     reset: () => setState(initialState),
   };
 
