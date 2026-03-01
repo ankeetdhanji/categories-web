@@ -21,6 +21,9 @@ export default function RoundPage() {
   const [countdownSeconds, setCountdownSeconds] = useState(5);
   const [endingRound, setEndingRound] = useState(false);
   const inputRefs = useRef<(HTMLInputElement | null)[]>([]);
+  // Ref mirror of `submitted` so timer closures always read the current value
+  // and don't fire duplicate auto-submits due to stale closure capture.
+  const submittedRef = useRef(false);
 
   // RoundStarted — set round data and dismiss the countdown overlay
   useSignalREvent(HubEvents.RoundStarted, (payload) => {
@@ -61,7 +64,9 @@ export default function RoundPage() {
       const remaining = (new Date(currentRound!.endsAt!).getTime() - Date.now()) / 1000;
       const clamped = Math.max(0, Math.ceil(remaining));
       setSecondsLeft(clamped);
-      if (clamped <= 0 && !submitted) handleSubmit(true);
+      // Use the ref (not the stale closure value of `submitted`) so only one
+      // auto-submit fires even though the interval keeps ticking at 0.
+      if (clamped <= 0 && !submittedRef.current) handleSubmit(true);
     }
     tick();
     const id = setInterval(tick, 500);
@@ -72,19 +77,24 @@ export default function RoundPage() {
   useEffect(() => {
     setAnswers({});
     setSubmitted(false);
+    submittedRef.current = false;
     setSecondsLeft(null);
     clearSubmittedPlayers();
     inputRefs.current[0]?.focus();
   }, [currentRound?.roundNumber]);
 
   async function handleSubmit(auto = false) {
-    if (!gameId || !playerId || submitted) return;
+    if (!gameId || !playerId || submittedRef.current) return;
+    submittedRef.current = true;
     setSubmitted(true);
     try {
       await api.submitAnswers(gameId, playerId, answers);
       addSubmittedPlayer(playerId);
     } catch {
-      if (!auto) setSubmitted(false);
+      if (!auto) {
+        submittedRef.current = false;
+        setSubmitted(false);
+      }
     }
   }
 
