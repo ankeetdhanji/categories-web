@@ -5,7 +5,7 @@ import { api } from '../services/api';
 import { HubEvents } from '../services/signalr';
 
 export default function RoundPage() {
-  const { gameId, playerId, phase, currentRound, countdownStartAt, setPhase, setCurrentRound } = useGame();
+  const { gameId, playerId, phase, currentRound, countdownStartAt, countdownLetter, countdownRoundNumber, setPhase, setCurrentRound } = useGame();
   const isCountdown = phase === 'countdown';
 
   const [answers, setAnswers] = useState<Record<string, string>>({});
@@ -201,24 +201,25 @@ export default function RoundPage() {
       )}
 
       {/* Countdown overlay */}
-      {isCountdown && <CountdownOverlay seconds={countdownSeconds} round={currentRound} />}
+      {isCountdown && (
+        <CountdownOverlay
+          seconds={countdownSeconds}
+          letter={currentRound?.letter ?? countdownLetter ?? '?'}
+          roundNumber={currentRound?.roundNumber ?? countdownRoundNumber ?? null}
+        />
+      )}
     </div>
   );
 }
 
-interface CountdownOverlayProps {
-  seconds: number;
-  round: RoundInfo | null;
-}
-
-function CountdownOverlay({ seconds, round }: CountdownOverlayProps) {
+function CountdownOverlay({ seconds, letter, roundNumber }: { seconds: number; letter: string; roundNumber: number | null }) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-[rgba(11,15,20,0.9)]">
       <div className="flex flex-col items-center gap-6">
         {/* Round + Letter labels */}
         <div className="flex flex-col items-center gap-2">
           <span className="text-sm font-medium uppercase tracking-[1.25px] text-[#9ca3af]">
-            {round ? `Round ${round.roundNumber}` : 'Round'}
+            {roundNumber != null ? `Round ${roundNumber}` : 'Round'}
           </span>
           <span className="text-xs font-medium uppercase tracking-[1.2px] text-[#9ca3af]">
             Letter
@@ -238,7 +239,7 @@ function CountdownOverlay({ seconds, round }: CountdownOverlayProps) {
               className="text-[96px] font-bold leading-none bg-clip-text text-transparent"
               style={{ backgroundImage: 'linear-gradient(180deg, #e5e7eb 0%, #9ca3af 100%)' }}
             >
-              {round?.letter ?? '?'}
+              {letter}
             </span>
           </div>
         </div>
