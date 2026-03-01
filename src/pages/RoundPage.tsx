@@ -21,6 +21,9 @@ export default function RoundPage() {
   const [countdownSeconds, setCountdownSeconds] = useState(5);
   const [endingRound, setEndingRound] = useState(false);
   const inputRefs = useRef<(HTMLInputElement | null)[]>([]);
+  // Ref mirror of `submitted` so timer closures always read the current value
+  // and don't fire duplicate auto-submits due to stale closure capture.
+  const submittedRef = useRef(false);
 
   // RoundStarted — set round data and dismiss the countdown overlay
   useSignalREvent(HubEvents.RoundStarted, (payload) => {
@@ -61,7 +64,9 @@ export default function RoundPage() {
       const remaining = (new Date(currentRound!.endsAt!).getTime() - Date.now()) / 1000;
       const clamped = Math.max(0, Math.ceil(remaining));
       setSecondsLeft(clamped);
-      if (clamped <= 0 && !submitted) handleSubmit(true);
+      // Use the ref (not the stale closure value of `submitted`) so only one
+      // auto-submit fires even though the interval keeps ticking at 0.
+      if (clamped <= 0 && !submittedRef.current) handleSubmit(true);
     }
     tick();
     const id = setInterval(tick, 500);
@@ -72,19 +77,24 @@ export default function RoundPage() {
   useEffect(() => {
     setAnswers({});
     setSubmitted(false);
+    submittedRef.current = false;
     setSecondsLeft(null);
     clearSubmittedPlayers();
     inputRefs.current[0]?.focus();
   }, [currentRound?.roundNumber]);
 
   async function handleSubmit(auto = false) {
-    if (!gameId || !playerId || submitted) return;
+    if (!gameId || !playerId || submittedRef.current) return;
+    submittedRef.current = true;
     setSubmitted(true);
     try {
       await api.submitAnswers(gameId, playerId, answers);
       addSubmittedPlayer(playerId);
     } catch {
-      if (!auto) setSubmitted(false);
+      if (!auto) {
+        submittedRef.current = false;
+        setSubmitted(false);
+      }
     }
   }
 
@@ -216,6 +226,9 @@ export default function RoundPage() {
               total={categories.length}
               players={players}
               playerId={playerId}
+              isHost={isHost}
+              endingRound={endingRound}
+              onForceEnd={handleForceEnd}
               onReaction={handleReaction}
             />
           ) : (
@@ -249,12 +262,15 @@ export default function RoundPage() {
 // --- Timed Mode Sidebar ---
 
 function TimedSidebar({
-  filledCount, total, players, playerId, onReaction,
+  filledCount, total, players, playerId, isHost, endingRound, onForceEnd, onReaction,
 }: {
   filledCount: number;
   total: number;
   players: { id: string; displayName: string; isHost: boolean }[];
   playerId: string | null;
+  isHost: boolean;
+  endingRound: boolean;
+  onForceEnd: () => void;
   onReaction: (emoji: string) => void;
 }) {
   const pct = total > 0 ? (filledCount / total) * 100 : 0;
@@ -280,6 +296,22 @@ function TimedSidebar({
 
       {/* PLAYERS */}
       <PlayerList players={players} playerId={playerId} />
+
+      {/* End round — host only */}
+      {isHost && (
+        <section className="p-4 border-t border-[#1a2333] flex flex-col gap-1">
+          <button
+            onClick={onForceEnd}
+            disabled={endingRound}
+            className="w-full h-9 rounded-xl font-bold text-xs flex items-center justify-center gap-1.5 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+            style={{ background: 'transparent', border: '1px solid #ef4444', color: '#ef4444' }}
+          >
+            <WarningIcon color="#ef4444" />
+            <span>{endingRound ? 'Ending round…' : 'End round early'}</span>
+          </button>
+          <span className="text-center text-[10px] text-[#4b5563]">Host only — use if someone is AFK</span>
+        </section>
+      )}
 
       {/* REACTIONS */}
       <ReactionBar onReaction={onReaction} />
