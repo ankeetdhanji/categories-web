@@ -30,6 +30,7 @@ export default function ReviewPage() {
   const roundToFetch = reviewRoundNumber ?? currentRound?.roundNumber ?? null;
 
   const [results, setResults] = useState<RoundReviewResult | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [categoryIndex, setCategoryIndex] = useState(0);
   const [secondsLeft, setSecondsLeft] = useState(CATEGORY_REVIEW_SECONDS);
   const [myLikes, setMyLikes] = useState<Record<string, string>>({}); // category → normalizedAnswer
@@ -43,7 +44,13 @@ export default function ReviewPage() {
   // Fetch round results on mount
   useEffect(() => {
     if (!gameId || !roundToFetch) return;
-    api.getRoundResults(gameId, roundToFetch).then(setResults).catch(console.error);
+    setLoadError(null);
+    api.getRoundResults(gameId, roundToFetch)
+      .then(setResults)
+      .catch((err: unknown) => {
+        console.error('getRoundResults failed:', err);
+        setLoadError(err instanceof Error ? err.message : String(err));
+      });
   }, [gameId, roundToFetch]);
 
   // Auto-advance timer — only the host calls the advance endpoint when it fires
@@ -129,6 +136,22 @@ export default function ReviewPage() {
         return next;
       });
     }
+  }
+
+  if (loadError) {
+    return (
+      <div className="flex flex-col items-center justify-center gap-3 min-h-screen" style={{ background: '#0b0f14', color: '#ef4444' }}>
+        <span className="font-bold text-sm">Failed to load results</span>
+        <span className="text-xs font-mono max-w-sm text-center" style={{ color: '#9ca3af' }}>{loadError}</span>
+        <button
+          onClick={() => { setLoadError(null); if (gameId && roundToFetch) api.getRoundResults(gameId, roundToFetch).then(setResults).catch((e: unknown) => setLoadError(e instanceof Error ? e.message : String(e))); }}
+          className="mt-2 px-4 py-2 rounded-lg text-xs font-bold"
+          style={{ background: '#161f2b', border: '1px solid #263244', color: '#e5e7eb' }}
+        >
+          Retry
+        </button>
+      </div>
+    );
   }
 
   if (!results) {
