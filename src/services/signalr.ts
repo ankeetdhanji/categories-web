@@ -48,5 +48,6 @@ export const HubEvents = {
   DisputeFlagged: 'DisputeFlagged',
   DisputeResolved: 'DisputeResolved',
   LeaderboardUpdated: 'LeaderboardUpdated',
+  PlayerSubmitted: 'PlayerSubmitted',
   EmojiReaction: 'EmojiReaction',
 } as const;

@@ -12,9 +12,21 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
   return res.json() as Promise<T>;
 }
 
+export interface GameSettings {
+  isTimedMode: boolean;
+  roundDurationSeconds: number;
+  maxRounds: number;
+  maxPlayers: number;
+  uniqueAnswerPoints: number;
+  sharedAnswerPoints: number;
+  bestAnswerBonusPoints: number;
+  disputeVotingWindowSeconds: number;
+  categories: string[];
+}
+
 export const api = {
   createGame: (hostPlayerId: string, displayName: string) =>
-    request<{ gameId: string; joinCode: string }>('/api/games', {
+    request<{ gameId: string; joinCode: string; settings: GameSettings }>('/api/games', {
       method: 'POST',
       body: JSON.stringify({ hostPlayerId, displayName }),
     }),
@@ -23,6 +35,7 @@ export const api = {
     request<{
       gameId: string;
       players: { id: string; displayName: string; isGuest: boolean; totalScore: number }[];
+      settings: GameSettings;
     }>(`/api/games/${joinCode}/join`, {
       method: 'POST',
       body: JSON.stringify({ playerId, displayName }),
@@ -46,5 +59,11 @@ export const api = {
     request<void>(`/api/games/${gameId}/rounds/current/answers`, {
       method: 'POST',
       body: JSON.stringify({ playerId, answers }),
+    }),
+
+  forceEndRound: (gameId: string, playerId: string) =>
+    request<void>(`/api/games/${gameId}/rounds/current/end`, {
+      method: 'POST',
+      body: JSON.stringify({ playerId }),
     }),
 };
