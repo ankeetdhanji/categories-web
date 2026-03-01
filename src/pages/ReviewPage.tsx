@@ -21,8 +21,13 @@ export default function ReviewPage() {
   const {
     gameId, playerId, isHost,
     players, maxRounds,
-    reviewRoundNumber, leaderboard,
+    currentRound, reviewRoundNumber, leaderboard,
   } = useGame();
+
+  // reviewRoundNumber is set by LeaderboardUpdated, which fires after RoundEnded.
+  // By the time ReviewPage mounts, RoundPage is already unmounted so that handler
+  // may never run. Fall back to currentRound.roundNumber which is always in context.
+  const roundToFetch = reviewRoundNumber ?? currentRound?.roundNumber ?? null;
 
   const [results, setResults] = useState<RoundReviewResult | null>(null);
   const [categoryIndex, setCategoryIndex] = useState(0);
@@ -37,9 +42,9 @@ export default function ReviewPage() {
 
   // Fetch round results on mount
   useEffect(() => {
-    if (!gameId || !reviewRoundNumber) return;
-    api.getRoundResults(gameId, reviewRoundNumber).then(setResults).catch(console.error);
-  }, [gameId, reviewRoundNumber]);
+    if (!gameId || !roundToFetch) return;
+    api.getRoundResults(gameId, roundToFetch).then(setResults).catch(console.error);
+  }, [gameId, roundToFetch]);
 
   // Auto-advance timer — only the host calls the advance endpoint when it fires
   useEffect(() => {
