@@ -12,6 +12,7 @@ export default function RoundPage() {
     countdownStartAt, countdownLetter, countdownRoundNumber,
     players, isTimedMode, maxRounds, submittedPlayerIds,
     setPhase, setCurrentRound, addSubmittedPlayer, clearSubmittedPlayers,
+    setLeaderboard, setReviewRoundNumber,
   } = useGame();
   const isCountdown = phase === 'countdown';
 
@@ -34,6 +35,13 @@ export default function RoundPage() {
   // Track who has submitted (relaxed mode sidebar)
   useSignalREvent(HubEvents.PlayerSubmitted, (data) => {
     addSubmittedPlayer((data as { playerId: string }).playerId);
+  });
+
+  // Leaderboard received after scoring — store it for the review screen
+  useSignalREvent(HubEvents.LeaderboardUpdated, (data) => {
+    const d = data as { roundNumber: number; leaderboard: { playerId: string; displayName: string; totalScore: number; roundScore: number }[] };
+    setLeaderboard(d.leaderboard);
+    setReviewRoundNumber(d.roundNumber);
   });
 
   // Round ended by server

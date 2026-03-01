@@ -50,4 +50,7 @@ export const HubEvents = {
   LeaderboardUpdated: 'LeaderboardUpdated',
   PlayerSubmitted: 'PlayerSubmitted',
   EmojiReaction: 'EmojiReaction',
+  CategoryAdvanced: 'CategoryAdvanced',
+  DisputeVoteUpdated: 'DisputeVoteUpdated',
+  ReviewComplete: 'ReviewComplete',
 } as const;

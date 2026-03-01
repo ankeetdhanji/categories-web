@@ -1,4 +1,5 @@
 import { createContext, useContext, useState, type ReactNode } from 'react';
+import type { LeaderboardEntry } from '../services/api';
 
 export type GamePhase =
   | 'home'
@@ -42,6 +43,8 @@ interface GameState {
   isTimedMode: boolean;
   maxRounds: number;
   submittedPlayerIds: string[];
+  leaderboard: LeaderboardEntry[];
+  reviewRoundNumber: number | null;
 }
 
 interface GameContextValue extends GameState {
@@ -59,6 +62,8 @@ interface GameContextValue extends GameState {
   setGameSettings: (isTimedMode: boolean, maxRounds: number) => void;
   addSubmittedPlayer: (playerId: string) => void;
   clearSubmittedPlayers: () => void;
+  setLeaderboard: (entries: LeaderboardEntry[]) => void;
+  setReviewRoundNumber: (n: number) => void;
   reset: () => void;
 }
 
@@ -77,6 +82,8 @@ const initialState: GameState = {
   isTimedMode: true,
   maxRounds: 5,
   submittedPlayerIds: [],
+  leaderboard: [],
+  reviewRoundNumber: null,
 };
 
 const GameContext = createContext<GameContextValue | null>(null);
@@ -111,6 +118,8 @@ export function GameProvider({ children }: { children: ReactNode }) {
         : [...s.submittedPlayerIds, playerId],
     })),
     clearSubmittedPlayers: () => setState((s) => ({ ...s, submittedPlayerIds: [] })),
+    setLeaderboard: (leaderboard) => setState((s) => ({ ...s, leaderboard })),
+    setReviewRoundNumber: (reviewRoundNumber) => setState((s) => ({ ...s, reviewRoundNumber })),
     reset: () => setState(initialState),
   };
 
