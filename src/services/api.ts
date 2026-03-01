@@ -24,6 +24,39 @@ export interface GameSettings {
   categories: string[];
 }
 
+export interface PlayerRef {
+  id: string;
+  displayName: string;
+}
+
+export interface AnswerEntry {
+  rawAnswer: string;
+  normalizedAnswer: string;
+  players: PlayerRef[];
+  isShared: boolean;
+  isUnique: boolean;
+  isDisputed: boolean;
+  disputeId: string | null;
+}
+
+export interface CategoryReview {
+  name: string;
+  entries: AnswerEntry[];
+}
+
+export interface RoundReviewResult {
+  roundNumber: number;
+  letter: string;
+  categories: CategoryReview[];
+}
+
+export interface LeaderboardEntry {
+  playerId: string;
+  displayName: string;
+  totalScore: number;
+  roundScore: number;
+}
+
 export const api = {
   createGame: (hostPlayerId: string, displayName: string) =>
     request<{ gameId: string; joinCode: string; settings: GameSettings }>('/api/games', {
@@ -66,4 +99,25 @@ export const api = {
       method: 'POST',
       body: JSON.stringify({ playerId }),
     }),
+
+  getRoundResults: (gameId: string, roundNumber: number) =>
+    request<RoundReviewResult>(`/api/games/${gameId}/rounds/${roundNumber}/results`),
+
+  castDisputeVote: (gameId: string, roundNumber: number, disputeId: string, playerId: string, isValid: boolean) =>
+    request<{ voteCount: number; totalVoters: number; resolved: boolean; isValid: boolean }>(
+      `/api/games/${gameId}/rounds/${roundNumber}/disputes/${encodeURIComponent(disputeId)}/vote`,
+      { method: 'POST', body: JSON.stringify({ playerId, isValid }) },
+    ),
+
+  likeAnswer: (gameId: string, roundNumber: number, playerId: string, category: string, normalizedAnswer: string) =>
+    request<void>(`/api/games/${gameId}/rounds/${roundNumber}/likes`, {
+      method: 'POST',
+      body: JSON.stringify({ playerId, category, normalizedAnswer }),
+    }),
+
+  advanceCategory: (gameId: string, playerId: string, currentCategoryIndex: number) =>
+    request<{ categoryIndex: number; isLastCategory: boolean }>(
+      `/api/games/${gameId}/rounds/current/review/advance`,
+      { method: 'POST', body: JSON.stringify({ playerId, currentCategoryIndex }) },
+    ),
 };

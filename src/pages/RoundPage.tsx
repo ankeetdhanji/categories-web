@@ -12,6 +12,7 @@ export default function RoundPage() {
     countdownStartAt, countdownLetter, countdownRoundNumber,
     players, isTimedMode, maxRounds, submittedPlayerIds,
     setPhase, setCurrentRound, addSubmittedPlayer, clearSubmittedPlayers,
+    setLeaderboard, setReviewRoundNumber,
   } = useGame();
   const isCountdown = phase === 'countdown';
 
@@ -36,8 +37,21 @@ export default function RoundPage() {
     addSubmittedPlayer((data as { playerId: string }).playerId);
   });
 
-  // Round ended by server
+  // Leaderboard received after scoring — store it for the review screen
+  useSignalREvent(HubEvents.LeaderboardUpdated, (data) => {
+    const d = data as { roundNumber: number; leaderboard: { playerId: string; displayName: string; totalScore: number; roundScore: number }[] };
+    setLeaderboard(d.leaderboard);
+    setReviewRoundNumber(d.roundNumber);
+  });
+
+  // Round ended by server — auto-submit any unsubmitted answers, then switch phase
   useSignalREvent(HubEvents.RoundEnded, () => {
+    if (!submittedRef.current) {
+      // Fire-and-forget: captures answers typed but not yet submitted.
+      // Backend accepts late submissions until scoring completes.
+      api.submitAnswers(gameId ?? '', playerId ?? '', answers).catch(() => {});
+      submittedRef.current = true;
+    }
     setPhase('results');
   });
 
@@ -102,6 +116,18 @@ export default function RoundPage() {
     if (!gameId || !playerId || endingRound) return;
     setEndingRound(true);
     try {
+      // Best-effort: submit own answers before locking so they're captured.
+      // Don't let a submission failure block the force-end.
+      if (!submittedRef.current) {
+        try {
+          await api.submitAnswers(gameId, playerId, answers);
+          submittedRef.current = true;
+          setSubmitted(true);
+          addSubmittedPlayer(playerId);
+        } catch {
+          // Submission failed — proceed with force-end anyway
+        }
+      }
       await api.forceEndRound(gameId, playerId);
     } catch {
       setEndingRound(false);
