@@ -39,6 +39,9 @@ interface GameState {
   countdownLetter: string | null;
   countdownRoundNumber: number | null;
   currentRound: RoundInfo | null;
+  isTimedMode: boolean;
+  maxRounds: number;
+  submittedPlayerIds: string[];
 }
 
 interface GameContextValue extends GameState {
@@ -53,6 +56,9 @@ interface GameContextValue extends GameState {
   setCountdownStartAt: (startAt: string) => void;
   setCountdownInfo: (letter: string, roundNumber: number) => void;
   setCurrentRound: (round: RoundInfo) => void;
+  setGameSettings: (isTimedMode: boolean, maxRounds: number) => void;
+  addSubmittedPlayer: (playerId: string) => void;
+  clearSubmittedPlayers: () => void;
   reset: () => void;
 }
 
@@ -68,6 +74,9 @@ const initialState: GameState = {
   countdownLetter: null,
   countdownRoundNumber: null,
   currentRound: null,
+  isTimedMode: true,
+  maxRounds: 5,
+  submittedPlayerIds: [],
 };
 
 const GameContext = createContext<GameContextValue | null>(null);
@@ -94,6 +103,14 @@ export function GameProvider({ children }: { children: ReactNode }) {
     setCountdownStartAt: (countdownStartAt) => setState((s) => ({ ...s, countdownStartAt })),
     setCountdownInfo: (countdownLetter, countdownRoundNumber) => setState((s) => ({ ...s, countdownLetter, countdownRoundNumber })),
     setCurrentRound: (currentRound) => setState((s) => ({ ...s, currentRound })),
+    setGameSettings: (isTimedMode, maxRounds) => setState((s) => ({ ...s, isTimedMode, maxRounds })),
+    addSubmittedPlayer: (playerId) => setState((s) => ({
+      ...s,
+      submittedPlayerIds: s.submittedPlayerIds.includes(playerId)
+        ? s.submittedPlayerIds
+        : [...s.submittedPlayerIds, playerId],
+    })),
+    clearSubmittedPlayers: () => setState((s) => ({ ...s, submittedPlayerIds: [] })),
     reset: () => setState(initialState),
   };
 
