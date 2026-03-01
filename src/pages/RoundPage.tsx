@@ -116,12 +116,17 @@ export default function RoundPage() {
     if (!gameId || !playerId || endingRound) return;
     setEndingRound(true);
     try {
-      // Submit own answers first so they're captured before the round locks.
+      // Best-effort: submit own answers before locking so they're captured.
+      // Don't let a submission failure block the force-end.
       if (!submittedRef.current) {
-        await api.submitAnswers(gameId, playerId, answers);
-        submittedRef.current = true;
-        setSubmitted(true);
-        addSubmittedPlayer(playerId);
+        try {
+          await api.submitAnswers(gameId, playerId, answers);
+          submittedRef.current = true;
+          setSubmitted(true);
+          addSubmittedPlayer(playerId);
+        } catch {
+          // Submission failed — proceed with force-end anyway
+        }
       }
       await api.forceEndRound(gameId, playerId);
     } catch {
