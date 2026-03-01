@@ -216,6 +216,9 @@ export default function RoundPage() {
               total={categories.length}
               players={players}
               playerId={playerId}
+              isHost={isHost}
+              endingRound={endingRound}
+              onForceEnd={handleForceEnd}
               onReaction={handleReaction}
             />
           ) : (
@@ -249,12 +252,15 @@ export default function RoundPage() {
 // --- Timed Mode Sidebar ---
 
 function TimedSidebar({
-  filledCount, total, players, playerId, onReaction,
+  filledCount, total, players, playerId, isHost, endingRound, onForceEnd, onReaction,
 }: {
   filledCount: number;
   total: number;
   players: { id: string; displayName: string; isHost: boolean }[];
   playerId: string | null;
+  isHost: boolean;
+  endingRound: boolean;
+  onForceEnd: () => void;
   onReaction: (emoji: string) => void;
 }) {
   const pct = total > 0 ? (filledCount / total) * 100 : 0;
@@ -280,6 +286,22 @@ function TimedSidebar({
 
       {/* PLAYERS */}
       <PlayerList players={players} playerId={playerId} />
+
+      {/* End round — host only */}
+      {isHost && (
+        <section className="p-4 border-t border-[#1a2333] flex flex-col gap-1">
+          <button
+            onClick={onForceEnd}
+            disabled={endingRound}
+            className="w-full h-9 rounded-xl font-bold text-xs flex items-center justify-center gap-1.5 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+            style={{ background: 'transparent', border: '1px solid #ef4444', color: '#ef4444' }}
+          >
+            <WarningIcon color="#ef4444" />
+            <span>{endingRound ? 'Ending round…' : 'End round early'}</span>
+          </button>
+          <span className="text-center text-[10px] text-[#4b5563]">Host only — use if someone is AFK</span>
+        </section>
+      )}
 
       {/* REACTIONS */}
       <ReactionBar onReaction={onReaction} />
