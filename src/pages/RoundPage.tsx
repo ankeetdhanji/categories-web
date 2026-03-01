@@ -5,21 +5,43 @@ import { api } from '../services/api';
 import { HubEvents } from '../services/signalr';
 
 export default function RoundPage() {
-  const { gameId, playerId, currentRound, setPhase, setCurrentRound } = useGame();
+  const { gameId, playerId, phase, currentRound, countdownStartAt, setPhase, setCurrentRound } = useGame();
+  const isCountdown = phase === 'countdown';
+
   const [answers, setAnswers] = useState<Record<string, string>>({});
   const [submitted, setSubmitted] = useState(false);
   const [secondsLeft, setSecondsLeft] = useState<number | null>(null);
+  const [countdownSeconds, setCountdownSeconds] = useState(5);
   const inputRefs = useRef<(HTMLInputElement | null)[]>([]);
+
+  // RoundStarted is the authoritative signal — set round data and dismiss the overlay
+  useSignalREvent(HubEvents.RoundStarted, (payload) => {
+    setCurrentRound(payload as RoundInfo);
+    setPhase('answering');
+  });
 
   // Round ended by server
   useSignalREvent(HubEvents.RoundEnded, () => {
     setPhase('results');
   });
 
-  // Fallback: if CountdownPage unmounted before RoundStarted arrived, catch it here
-  useSignalREvent(HubEvents.RoundStarted, (payload) => {
-    if (!currentRound) setCurrentRound(payload as RoundInfo);
-  });
+  // Countdown overlay timer (ticks while in countdown phase)
+  useEffect(() => {
+    if (!isCountdown) return;
+
+    function tick() {
+      if (countdownStartAt) {
+        const remaining = (new Date(countdownStartAt).getTime() - Date.now()) / 1000;
+        setCountdownSeconds(Math.max(0, Math.ceil(remaining)));
+      } else {
+        setCountdownSeconds((s) => Math.max(0, s - 1));
+      }
+    }
+
+    tick();
+    const id = setInterval(tick, countdownStartAt ? 100 : 1000);
+    return () => clearInterval(id);
+  }, [isCountdown, countdownStartAt]);
 
   // Timer synced to server endsAt
   useEffect(() => {
@@ -68,14 +90,6 @@ export default function RoundPage() {
   const filledCount = Object.values(answers).filter((v) => v.trim()).length;
   const categories = currentRound?.categories ?? [];
 
-  if (!currentRound) {
-    return (
-      <div className="flex items-center justify-center min-h-screen bg-[#0b0f14]">
-        <p className="text-[#6b7280]">Waiting for round to start…</p>
-      </div>
-    );
-  }
-
   return (
     <div className="min-h-screen bg-[#0b0f14] flex flex-col">
       {/* Background glows */}
@@ -85,47 +99,51 @@ export default function RoundPage() {
       {/* Header */}
       <header className="sticky top-0 z-40 border-b border-[#263244] bg-[rgba(11,15,20,0.85)] backdrop-blur-md">
         <div className="h-16 px-6 flex items-center justify-between">
-          {/* Round + letter */}
           <div className="flex items-center gap-4">
             <span className="text-xs font-bold uppercase tracking-widest text-[#6b7280]">
-              Round {currentRound.roundNumber}
+              Round {currentRound?.roundNumber ?? '—'}
             </span>
-            <div className="flex items-center gap-2">
-              <span className="text-xs font-bold uppercase tracking-widest text-[#6b7280]">Letter</span>
-              <span
-                className="font-black text-3xl leading-none"
-                style={{
-                  background: 'linear-gradient(135deg, #3b82f6, #ec4899)',
-                  WebkitBackgroundClip: 'text',
-                  WebkitTextFillColor: 'transparent',
-                }}
-              >
-                {currentRound.letter}
-              </span>
-            </div>
+            {currentRound && (
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-bold uppercase tracking-widest text-[#6b7280]">Letter</span>
+                <span
+                  className="font-black text-3xl leading-none"
+                  style={{
+                    background: 'linear-gradient(135deg, #3b82f6, #ec4899)',
+                    WebkitBackgroundClip: 'text',
+                    WebkitTextFillColor: 'transparent',
+                  }}
+                >
+                  {currentRound.letter}
+                </span>
+              </div>
+            )}
           </div>
 
-          {/* Timer + progress */}
           <div className="flex items-center gap-3">
-            <div className="flex items-center gap-1.5">
-              <span className={`font-mono font-bold text-lg tabular-nums ${timerWarning ? 'text-[#f87171]' : 'text-[#e5e7eb]'}`}>
-                {secondsLeft !== null ? formatTime(secondsLeft) : '--:--'}
-              </span>
-            </div>
-            <div className="text-xs text-[#6b7280]">{filledCount}/{categories.length}</div>
+            {!isCountdown && (
+              <>
+                <span className={`font-mono font-bold text-lg tabular-nums ${timerWarning ? 'text-[#f87171]' : 'text-[#e5e7eb]'}`}>
+                  {secondsLeft !== null ? formatTime(secondsLeft) : '--:--'}
+                </span>
+                <span className="text-xs text-[#6b7280]">{filledCount}/{categories.length}</span>
+              </>
+            )}
           </div>
         </div>
 
-        {/* Progress bar */}
-        <div className="h-0.5 bg-[#161f2b]">
-          <div
-            className="h-full transition-all duration-500"
-            style={{
-              width: categories.length > 0 ? `${(filledCount / categories.length) * 100}%` : '0%',
-              background: 'linear-gradient(to right, #3b82f6, #ec4899)',
-            }}
-          />
-        </div>
+        {/* Progress bar — only when answering */}
+        {!isCountdown && (
+          <div className="h-0.5 bg-[#161f2b]">
+            <div
+              className="h-full transition-all duration-500"
+              style={{
+                width: categories.length > 0 ? `${(filledCount / categories.length) * 100}%` : '0%',
+                background: 'linear-gradient(to right, #3b82f6, #ec4899)',
+              }}
+            />
+          </div>
+        )}
       </header>
 
       {/* Category inputs */}
@@ -147,7 +165,7 @@ export default function RoundPage() {
                 value={answers[category] ?? ''}
                 onChange={(e) => setAnswers((prev) => ({ ...prev, [category]: e.target.value }))}
                 onKeyDown={(e) => handleKeyDown(e, i)}
-                placeholder={`${currentRound.letter}…`}
+                placeholder={`${currentRound?.letter ?? '?'}…`}
                 className="w-full bg-transparent text-[#e5e7eb] text-base font-medium outline-none placeholder-[#374151] disabled:opacity-50"
               />
             </div>
@@ -155,29 +173,80 @@ export default function RoundPage() {
         })}
       </main>
 
-      {/* Submit bar */}
-      <div className="fixed bottom-0 left-0 right-0 z-40 px-4 pb-6 pt-4 bg-gradient-to-t from-[#0b0f14] to-transparent">
-        <div className="max-w-2xl mx-auto">
-          <button
-            onClick={() => handleSubmit()}
-            disabled={submitted}
-            className="w-full h-14 rounded-[14px] font-bold text-lg flex items-center justify-center gap-2 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-            style={{
-              background: submitted ? '#1f2937' : '#3b82f6',
-              color: submitted ? '#6b7280' : '#0b0f14',
-              boxShadow: submitted ? 'none' : '0px 0px 20px 0px rgba(59,130,246,0.3)',
-            }}
-          >
-            {submitted ? (
-              <>
-                <CheckIcon />
-                <span>Answers submitted</span>
-              </>
-            ) : (
-              <span>Done — submit answers ({filledCount}/{categories.length})</span>
-            )}
-          </button>
+      {/* Submit bar — only when answering */}
+      {!isCountdown && (
+        <div className="fixed bottom-0 left-0 right-0 z-40 px-4 pb-6 pt-4 bg-gradient-to-t from-[#0b0f14] to-transparent">
+          <div className="max-w-2xl mx-auto">
+            <button
+              onClick={() => handleSubmit()}
+              disabled={submitted}
+              className="w-full h-14 rounded-[14px] font-bold text-lg flex items-center justify-center gap-2 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+              style={{
+                background: submitted ? '#1f2937' : '#3b82f6',
+                color: submitted ? '#6b7280' : '#0b0f14',
+                boxShadow: submitted ? 'none' : '0px 0px 20px 0px rgba(59,130,246,0.3)',
+              }}
+            >
+              {submitted ? (
+                <>
+                  <CheckIcon />
+                  <span>Answers submitted</span>
+                </>
+              ) : (
+                <span>Done — submit answers ({filledCount}/{categories.length})</span>
+              )}
+            </button>
+          </div>
         </div>
+      )}
+
+      {/* Countdown overlay */}
+      {isCountdown && <CountdownOverlay seconds={countdownSeconds} round={currentRound} />}
+    </div>
+  );
+}
+
+interface CountdownOverlayProps {
+  seconds: number;
+  round: RoundInfo | null;
+}
+
+function CountdownOverlay({ seconds, round }: CountdownOverlayProps) {
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-[rgba(11,15,20,0.9)]">
+      <div className="flex flex-col items-center gap-6">
+        {/* Round + Letter labels */}
+        <div className="flex flex-col items-center gap-2">
+          <span className="text-sm font-medium uppercase tracking-[1.25px] text-[#9ca3af]">
+            {round ? `Round ${round.roundNumber}` : 'Round'}
+          </span>
+          <span className="text-xs font-medium uppercase tracking-[1.2px] text-[#9ca3af]">
+            Letter
+          </span>
+        </div>
+
+        {/* Letter card with glow */}
+        <div className="relative flex items-center justify-center w-40 h-40">
+          {/* Glow */}
+          <div
+            className="absolute inset-0 rounded-full opacity-30 blur-[64px]"
+            style={{ background: 'linear-gradient(180deg, #3b82f6 0%, #ec4899 100%)' }}
+          />
+          {/* Card */}
+          <div className="absolute inset-0 rounded-[32px] bg-[#161f2b] border border-[#263244] flex items-center justify-center shadow-[0px_25px_50px_0px_rgba(0,0,0,0.25)]">
+            <span
+              className="text-[96px] font-bold leading-none bg-clip-text text-transparent"
+              style={{ backgroundImage: 'linear-gradient(180deg, #e5e7eb 0%, #9ca3af 100%)' }}
+            >
+              {round?.letter ?? '?'}
+            </span>
+          </div>
+        </div>
+
+        {/* Countdown text */}
+        <span className="font-mono text-2xl text-[#3b82f6]">
+          Starting in {seconds}…
+        </span>
       </div>
     </div>
   );
