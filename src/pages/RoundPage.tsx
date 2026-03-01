@@ -44,8 +44,14 @@ export default function RoundPage() {
     setReviewRoundNumber(d.roundNumber);
   });
 
-  // Round ended by server
+  // Round ended by server — auto-submit any unsubmitted answers, then switch phase
   useSignalREvent(HubEvents.RoundEnded, () => {
+    if (!submittedRef.current) {
+      // Fire-and-forget: captures answers typed but not yet submitted.
+      // Backend accepts late submissions until scoring completes.
+      api.submitAnswers(gameId ?? '', playerId ?? '', answers).catch(() => {});
+      submittedRef.current = true;
+    }
     setPhase('results');
   });
 
@@ -110,6 +116,13 @@ export default function RoundPage() {
     if (!gameId || !playerId || endingRound) return;
     setEndingRound(true);
     try {
+      // Submit own answers first so they're captured before the round locks.
+      if (!submittedRef.current) {
+        await api.submitAnswers(gameId, playerId, answers);
+        submittedRef.current = true;
+        setSubmitted(true);
+        addSubmittedPlayer(playerId);
+      }
       await api.forceEndRound(gameId, playerId);
     } catch {
       setEndingRound(false);
