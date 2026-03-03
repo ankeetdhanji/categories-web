@@ -92,8 +92,18 @@ export const api = {
       id: string;
       joinCode: string;
       hostPlayerId: string;
+      /** Integer value of GameStatus enum: 0=Lobby 1=Starting 2=InRound 3=RoundResults 4=Disputes 5=BestAnswerVoting 6=Leaderboard 7=Finished */
+      status: number;
+      currentRoundIndex: number;
       players: { id: string; displayName: string; isGuest: boolean; totalScore: number }[];
       settings: GameSettings;
+      rounds: {
+        roundNumber: number;
+        letter: string;
+        categories: string[];
+        startedAt: string | null;
+        endedAt: string | null;
+      }[];
     }>(`/api/games/${gameId}`),
 
   submitAnswers: (gameId: string, playerId: string, answers: Record<string, string>) =>
