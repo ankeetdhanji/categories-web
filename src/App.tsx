@@ -3,6 +3,7 @@ import HomePage from './pages/HomePage';
 import LobbyPage from './pages/LobbyPage';
 import RoundPage from './pages/RoundPage';
 import ReviewPage from './pages/ReviewPage';
+import GameOverPage from './pages/GameOverPage';
 
 function GameRouter() {
   const { phase } = useGame();
@@ -13,7 +14,7 @@ function GameRouter() {
     case 'countdown':
     case 'answering': return <RoundPage />;
     case 'results':   return <ReviewPage />;
-    // TODO: leaderboard (KAN-27), gameOver pages
+    case 'gameOver':  return <GameOverPage />;
     default:          return <HomePage />;
   }
 }

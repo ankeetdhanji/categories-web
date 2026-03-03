@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
-import { useGame } from '../context/GameContext';
+import { useGame, type GamePhase } from '../context/GameContext';
 import { useSignalREvent } from '../hooks/useSignalR';
-import { api, type RoundReviewResult, type AnswerEntry } from '../services/api';
+import { api, type RoundReviewResult, type AnswerEntry, type FinalLeaderboardEntry } from '../services/api';
 import { HubEvents, sendReaction } from '../services/signalr';
 
 const CATEGORY_REVIEW_SECONDS = 30;
@@ -22,6 +22,7 @@ export default function ReviewPage() {
     gameId, playerId, isHost,
     players, maxRounds,
     currentRound, reviewRoundNumber, leaderboard,
+    setFinalResult, setPhase,
   } = useGame();
 
   // reviewRoundNumber is set by LeaderboardUpdated, which fires after RoundEnded.
@@ -82,6 +83,14 @@ export default function ReviewPage() {
   // SignalR: all categories reviewed
   useSignalREvent(HubEvents.ReviewComplete, () => {
     setShowLeaderboard(true);
+  });
+
+  // SignalR: final leaderboard after host calls finalize (roundNumber === -1)
+  useSignalREvent(HubEvents.LeaderboardUpdated, (data) => {
+    const d = data as { roundNumber: number; leaderboard: FinalLeaderboardEntry[]; winnerPlayerIds: string[]; bonusPerWinner: number };
+    if (d.roundNumber !== -1) return;
+    setFinalResult(d.winnerPlayerIds, d.bonusPerWinner, d.leaderboard);
+    setPhase('gameOver');
   });
 
   // SignalR: dispute vote progress
@@ -172,7 +181,18 @@ export default function ReviewPage() {
   const ss = String(secondsLeft % 60).padStart(2, '0');
 
   if (showLeaderboard) {
-    return <LeaderboardView leaderboard={leaderboard} roundNumber={roundNumber} maxRounds={maxRounds} isHost={isHost} />;
+    return (
+      <LeaderboardView
+        leaderboard={leaderboard}
+        roundNumber={roundNumber}
+        maxRounds={maxRounds}
+        isHost={isHost}
+        gameId={gameId}
+        playerId={playerId}
+        setFinalResult={setFinalResult}
+        setPhase={setPhase}
+      />
+    );
   }
 
   return (
@@ -487,12 +507,31 @@ function DisputeActions({ entry, myVote, hasVoted, progress, resolved, onVote }:
 
 // --- Inline leaderboard shown after review complete ---
 
-function LeaderboardView({ leaderboard, roundNumber, maxRounds, isHost }: {
+function LeaderboardView({ leaderboard, roundNumber, maxRounds, isHost, gameId, playerId, setFinalResult, setPhase }: {
   leaderboard: { playerId: string; displayName: string; totalScore: number; roundScore: number }[];
   roundNumber: number;
   maxRounds: number;
   isHost: boolean;
+  gameId: string | null;
+  playerId: string | null;
+  setFinalResult: (winnerIds: string[], bonus: number, finalLeaderboard: import('../services/api').FinalLeaderboardEntry[]) => void;
+  setPhase: (phase: GamePhase) => void;
 }) {
+  const [finalizing, setFinalizing] = useState(false);
+  const isLastRound = roundNumber === maxRounds;
+
+  async function handleFinalize() {
+    if (!gameId || !playerId || finalizing) return;
+    setFinalizing(true);
+    try {
+      const result = await api.finalizeGame(gameId, playerId);
+      setFinalResult(result.winnerPlayerIds, result.bonusPerWinner, result.leaderboard);
+      setPhase('gameOver');
+    } catch {
+      setFinalizing(false);
+    }
+  }
+
   return (
     <div className="relative min-h-screen flex flex-col items-center justify-center px-4 py-12" style={{ background: '#0b0f14' }}>
       <div className="pointer-events-none absolute rounded-full" style={{ width: 600, height: 600, top: '50%', left: '50%', transform: 'translate(-50%,-50%)', background: '#3b82f6', opacity: 0.05, filter: 'blur(120px)' }} />
@@ -532,9 +571,23 @@ function LeaderboardView({ leaderboard, roundNumber, maxRounds, isHost }: {
           )}
         </div>
 
-        <p className="text-center text-sm" style={{ color: '#6b7280' }}>
-          {isHost ? 'Start the next round when you\'re ready.' : 'Waiting for the host to start the next round…'}
-        </p>
+        {isHost && isLastRound ? (
+          <button
+            onClick={handleFinalize}
+            disabled={finalizing}
+            className="w-full h-14 rounded-[14px] font-bold text-lg flex items-center justify-center gap-2 transition-all disabled:opacity-50"
+            style={{ background: '#ec4899', color: '#0b0f14', boxShadow: '0 0 20px rgba(236,72,153,0.3)' }}
+          >
+            {finalizing ? 'Finalizing…' : '🏆 Finalize Game'}
+          </button>
+        ) : (
+          <p className="text-center text-sm" style={{ color: '#6b7280' }}>
+            {isHost ? "Start the next round when you're ready." : 'Waiting for the host to start the next round…'}
+          </p>
+        )}
+        {!isHost && isLastRound && (
+          <p className="text-center text-sm" style={{ color: '#6b7280' }}>Waiting for the host to finalize the game…</p>
+        )}
       </div>
     </div>
   );

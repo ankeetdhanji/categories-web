@@ -57,6 +57,13 @@ export interface LeaderboardEntry {
   roundScore: number;
 }
 
+export interface FinalLeaderboardEntry {
+  playerId: string;
+  displayName: string;
+  totalScore: number;
+  bestAnswerVotes: number;
+}
+
 export const api = {
   createGame: (hostPlayerId: string, displayName: string) =>
     request<{ gameId: string; joinCode: string; settings: GameSettings }>('/api/games', {
@@ -127,6 +134,12 @@ export const api = {
       method: 'PUT',
       body: JSON.stringify({ playerId, settings }),
     }),
+
+  finalizeGame: (gameId: string, playerId: string) =>
+    request<{ winnerPlayerIds: string[]; bonusPerWinner: number; leaderboard: FinalLeaderboardEntry[] }>(
+      `/api/games/${gameId}/finalize`,
+      { method: 'POST', body: JSON.stringify({ playerId }) },
+    ),
 
   getDefaultCategories: () =>
     request<{ categories: string[] }>('/api/categories/defaults'),

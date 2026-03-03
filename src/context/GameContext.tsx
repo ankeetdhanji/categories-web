@@ -1,5 +1,5 @@
 import { createContext, useContext, useState, type ReactNode } from 'react';
-import type { GameSettings, LeaderboardEntry } from '../services/api';
+import type { GameSettings, LeaderboardEntry, FinalLeaderboardEntry } from '../services/api';
 
 export type GamePhase =
   | 'home'
@@ -46,6 +46,9 @@ interface GameState {
   submittedPlayerIds: string[];
   leaderboard: LeaderboardEntry[];
   reviewRoundNumber: number | null;
+  finalWinnerIds: string[];
+  bonusPerWinner: number;
+  finalLeaderboard: FinalLeaderboardEntry[];
 }
 
 interface GameContextValue extends GameState {
@@ -65,6 +68,7 @@ interface GameContextValue extends GameState {
   clearSubmittedPlayers: () => void;
   setLeaderboard: (entries: LeaderboardEntry[]) => void;
   setReviewRoundNumber: (n: number) => void;
+  setFinalResult: (winnerIds: string[], bonus: number, finalLeaderboard: FinalLeaderboardEntry[]) => void;
   reset: () => void;
 }
 
@@ -86,6 +90,9 @@ const initialState: GameState = {
   submittedPlayerIds: [],
   leaderboard: [],
   reviewRoundNumber: null,
+  finalWinnerIds: [],
+  bonusPerWinner: 0,
+  finalLeaderboard: [],
 };
 
 const GameContext = createContext<GameContextValue | null>(null);
@@ -122,6 +129,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
     clearSubmittedPlayers: () => setState((s) => ({ ...s, submittedPlayerIds: [] })),
     setLeaderboard: (leaderboard) => setState((s) => ({ ...s, leaderboard })),
     setReviewRoundNumber: (reviewRoundNumber) => setState((s) => ({ ...s, reviewRoundNumber })),
+    setFinalResult: (finalWinnerIds, bonusPerWinner, finalLeaderboard) => setState((s) => ({ ...s, finalWinnerIds, bonusPerWinner, finalLeaderboard })),
     reset: () => setState(initialState),
   };
 
