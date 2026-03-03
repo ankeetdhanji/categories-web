@@ -3,7 +3,7 @@ import { api } from '../services/api';
 import { useGame } from '../context/GameContext';
 
 export default function HomePage() {
-  const { setGameId, setJoinCode, setPlayer, setHost, setPhase, setPlayers, setGameSettings } = useGame();
+  const { setGameId, setJoinCode, setPlayer, setHost, setPhase, setPlayers, setFullSettings } = useGame();
   const [joinCode, setJoinCodeInput] = useState('');
   const [joinError, setJoinError] = useState('');
   const [isJoining, setIsJoining] = useState(false);
@@ -26,7 +26,7 @@ export default function HomePage() {
       setJoinCode(code);
       setHost(false);
       setPlayers(res.players.map((p) => ({ ...p, isHost: false })));
-      setGameSettings(res.settings.isTimedMode, res.settings.maxRounds);
+      setFullSettings(res.settings);
       setPhase('lobby');
     } catch {
       setJoinError('Game not found. Check the code and try again.');
@@ -46,7 +46,7 @@ export default function HomePage() {
       setJoinCode(res.joinCode);
       setHost(true);
       setPlayers([{ id: playerId, displayName: 'Host', isHost: true, isGuest: false, totalScore: 0 }]);
-      setGameSettings(res.settings.isTimedMode, res.settings.maxRounds);
+      setFullSettings(res.settings);
       setPhase('lobby');
     } catch (err) {
       setCreateError(err instanceof Error ? err.message : 'Failed to create game. Is the server running?');

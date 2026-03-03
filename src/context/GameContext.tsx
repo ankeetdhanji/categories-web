@@ -1,5 +1,5 @@
 import { createContext, useContext, useState, type ReactNode } from 'react';
-import type { LeaderboardEntry } from '../services/api';
+import type { GameSettings, LeaderboardEntry } from '../services/api';
 
 export type GamePhase =
   | 'home'
@@ -42,6 +42,7 @@ interface GameState {
   currentRound: RoundInfo | null;
   isTimedMode: boolean;
   maxRounds: number;
+  settings: GameSettings | null;
   submittedPlayerIds: string[];
   leaderboard: LeaderboardEntry[];
   reviewRoundNumber: number | null;
@@ -59,7 +60,7 @@ interface GameContextValue extends GameState {
   setCountdownStartAt: (startAt: string) => void;
   setCountdownInfo: (letter: string, roundNumber: number) => void;
   setCurrentRound: (round: RoundInfo) => void;
-  setGameSettings: (isTimedMode: boolean, maxRounds: number) => void;
+  setFullSettings: (settings: GameSettings) => void;
   addSubmittedPlayer: (playerId: string) => void;
   clearSubmittedPlayers: () => void;
   setLeaderboard: (entries: LeaderboardEntry[]) => void;
@@ -81,6 +82,7 @@ const initialState: GameState = {
   currentRound: null,
   isTimedMode: true,
   maxRounds: 5,
+  settings: null,
   submittedPlayerIds: [],
   leaderboard: [],
   reviewRoundNumber: null,
@@ -110,7 +112,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
     setCountdownStartAt: (countdownStartAt) => setState((s) => ({ ...s, countdownStartAt })),
     setCountdownInfo: (countdownLetter, countdownRoundNumber) => setState((s) => ({ ...s, countdownLetter, countdownRoundNumber })),
     setCurrentRound: (currentRound) => setState((s) => ({ ...s, currentRound })),
-    setGameSettings: (isTimedMode, maxRounds) => setState((s) => ({ ...s, isTimedMode, maxRounds })),
+    setFullSettings: (s) => setState((prev) => ({ ...prev, settings: s, isTimedMode: s.isTimedMode, maxRounds: s.maxRounds })),
     addSubmittedPlayer: (playerId) => setState((s) => ({
       ...s,
       submittedPlayerIds: s.submittedPlayerIds.includes(playerId)

@@ -86,6 +86,7 @@ export const api = {
       joinCode: string;
       hostPlayerId: string;
       players: { id: string; displayName: string; isGuest: boolean; totalScore: number }[];
+      settings: GameSettings;
     }>(`/api/games/${gameId}`),
 
   submitAnswers: (gameId: string, playerId: string, answers: Record<string, string>) =>
@@ -120,4 +121,22 @@ export const api = {
       `/api/games/${gameId}/rounds/current/review/advance`,
       { method: 'POST', body: JSON.stringify({ playerId, currentCategoryIndex }) },
     ),
+
+  updateSettings: (gameId: string, playerId: string, settings: GameSettings) =>
+    request<void>(`/api/games/${gameId}/settings`, {
+      method: 'PUT',
+      body: JSON.stringify({ playerId, settings }),
+    }),
+
+  getDefaultCategories: () =>
+    request<{ categories: string[] }>('/api/categories/defaults'),
+
+  getSavedCategories: (playerId: string) =>
+    request<{ categories: string[] }>(`/api/users/${playerId}/categories`),
+
+  saveMyCategories: (playerId: string, categories: string[]) =>
+    request<void>(`/api/users/${playerId}/categories`, {
+      method: 'PUT',
+      body: JSON.stringify({ categories }),
+    }),
 };
