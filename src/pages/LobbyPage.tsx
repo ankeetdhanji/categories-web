@@ -20,7 +20,7 @@ interface FloatingReaction {
 export default function LobbyPage() {
   const {
     gameId, joinCode, playerId, isHost, players, settings,
-    setFullSettings, setPlayers, addPlayer, removePlayer,
+    setFullSettings, setPlayers, addPlayer,
     setPhase, setCountdownStartAt, setCountdownInfo,
   } = useGame();
 
@@ -51,11 +51,11 @@ export default function LobbyPage() {
   }, [settings, defaultCategories]);
 
   useEffect(() => {
-    if (!gameId) return;
+    if (!gameId || !playerId) return;
     startConnection()
-      .then(() => joinGameGroup(gameId))
+      .then(() => joinGameGroup(gameId, playerId))
       .catch(console.error);
-  }, [gameId]);
+  }, [gameId, playerId]);
 
   useEffect(() => {
     if (!gameId) return;
@@ -67,6 +67,7 @@ export default function LobbyPage() {
           isHost: p.id === game.hostPlayerId,
           isGuest: p.isGuest,
           totalScore: p.totalScore,
+          isSpectating: p.isSpectating,
         })),
       );
       // Freshen settings from server (handles case where context was reset)
@@ -103,7 +104,6 @@ export default function LobbyPage() {
   }, []);
 
   useSignalREvent(HubEvents.PlayerJoined, (player) => { addPlayer(player as Player); });
-  useSignalREvent(HubEvents.PlayerLeft, (data) => { removePlayer((data as { playerId: string }).playerId); });
   useSignalREvent(HubEvents.GameCountdown, (data) => {
     const { startAt, letter, roundNumber } = data as { startAt: string; letter: string; roundNumber: number };
     setCountdownStartAt(startAt);
@@ -297,6 +297,11 @@ export default function LobbyPage() {
                       <span className="flex items-center gap-1 bg-[rgba(236,72,153,0.1)] border border-[rgba(236,72,153,0.2)] rounded px-1.5 py-0.5 flex-shrink-0">
                         <CrownIcon />
                         <span className="text-[10px] font-bold uppercase tracking-wide text-[#ec4899]">Host</span>
+                      </span>
+                    )}
+                    {p.isSpectating && (
+                      <span className="text-[10px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded bg-[rgba(107,114,128,0.1)] border border-[rgba(107,114,128,0.2)] text-[#6b7280] flex-shrink-0">
+                        Spectating
                       </span>
                     )}
                     {p.id === playerId && !p.isHost && (

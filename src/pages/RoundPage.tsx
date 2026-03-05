@@ -10,8 +10,8 @@ export default function RoundPage() {
   const {
     gameId, playerId, isHost, phase, currentRound,
     countdownStartAt, countdownLetter, countdownRoundNumber,
-    players, isTimedMode, maxRounds, submittedPlayerIds,
-    setPhase, setCurrentRound, addSubmittedPlayer, clearSubmittedPlayers,
+    players, isTimedMode, maxRounds,
+    setPhase, setCurrentRound,
     setLeaderboard, setReviewRoundNumber,
   } = useGame();
   const isCountdown = phase === 'countdown';
@@ -21,6 +21,7 @@ export default function RoundPage() {
   const [secondsLeft, setSecondsLeft] = useState<number | null>(null);
   const [countdownSeconds, setCountdownSeconds] = useState(5);
   const [endingRound, setEndingRound] = useState(false);
+  const [donePlayerIds, setDonePlayerIds] = useState<string[]>([]);
   const inputRefs = useRef<(HTMLInputElement | null)[]>([]);
   // Ref mirror of `submitted` so timer closures always read the current value
   // and don't fire duplicate auto-submits due to stale closure capture.
@@ -32,16 +33,17 @@ export default function RoundPage() {
     setPhase('answering');
   });
 
-  // Track who has submitted (relaxed mode sidebar)
-  useSignalREvent(HubEvents.PlayerSubmitted, (data) => {
-    addSubmittedPlayer((data as { playerId: string }).playerId);
-  });
-
   // Leaderboard received after scoring — store it for the review screen
   useSignalREvent(HubEvents.LeaderboardUpdated, (data) => {
     const d = data as { roundNumber: number; leaderboard: { playerId: string; displayName: string; totalScore: number; roundScore: number }[] };
     setLeaderboard(d.leaderboard);
     setReviewRoundNumber(d.roundNumber);
+  });
+
+  // Track who has clicked Done in relaxed mode
+  useSignalREvent(HubEvents.PlayerDone, (data) => {
+    const { playerId: doneId } = data as { playerId: string };
+    setDonePlayerIds((prev) => prev.includes(doneId) ? prev : [...prev, doneId]);
   });
 
   // Round ended by server — auto-submit any unsubmitted answers, then switch phase
@@ -93,7 +95,7 @@ export default function RoundPage() {
     setSubmitted(false);
     submittedRef.current = false;
     setSecondsLeft(null);
-    clearSubmittedPlayers();
+    setDonePlayerIds([]);
     inputRefs.current[0]?.focus();
   }, [currentRound?.roundNumber]);
 
@@ -103,12 +105,24 @@ export default function RoundPage() {
     setSubmitted(true);
     try {
       await api.submitAnswers(gameId, playerId, answers);
-      addSubmittedPlayer(playerId);
     } catch {
       if (!auto) {
         submittedRef.current = false;
         setSubmitted(false);
       }
+    }
+  }
+
+  async function handleDone() {
+    if (!gameId || !playerId || submittedRef.current) return;
+    submittedRef.current = true;
+    setSubmitted(true);
+    try {
+      await api.submitAnswers(gameId, playerId, answers);
+      await api.markDone(gameId, playerId);
+    } catch {
+      submittedRef.current = false;
+      setSubmitted(false);
     }
   }
 
@@ -123,7 +137,6 @@ export default function RoundPage() {
           await api.submitAnswers(gameId, playerId, answers);
           submittedRef.current = true;
           setSubmitted(true);
-          addSubmittedPlayer(playerId);
         } catch {
           // Submission failed — proceed with force-end anyway
         }
@@ -261,11 +274,11 @@ export default function RoundPage() {
             <RelaxedSidebar
               players={players}
               playerId={playerId}
-              submittedPlayerIds={submittedPlayerIds}
+              donePlayerIds={donePlayerIds}
               submitted={submitted}
               isHost={isHost}
               endingRound={endingRound}
-              onSubmit={() => handleSubmit()}
+              onDone={handleDone}
               onForceEnd={handleForceEnd}
               onReaction={handleReaction}
             />
@@ -292,7 +305,7 @@ function TimedSidebar({
 }: {
   filledCount: number;
   total: number;
-  players: { id: string; displayName: string; isHost: boolean }[];
+  players: { id: string; displayName: string; isHost: boolean; isSpectating?: boolean }[];
   playerId: string | null;
   isHost: boolean;
   endingRound: boolean;
@@ -348,19 +361,20 @@ function TimedSidebar({
 // --- Relaxed Mode Sidebar ---
 
 function RelaxedSidebar({
-  players, playerId, submittedPlayerIds, submitted, isHost, endingRound, onSubmit, onForceEnd, onReaction,
+  players, playerId, donePlayerIds, submitted, isHost, endingRound, onDone, onForceEnd, onReaction,
 }: {
-  players: { id: string; displayName: string; isHost: boolean }[];
+  players: { id: string; displayName: string; isHost: boolean; isSpectating?: boolean }[];
   playerId: string | null;
-  submittedPlayerIds: string[];
+  donePlayerIds: string[];
   submitted: boolean;
   isHost: boolean;
   endingRound: boolean;
-  onSubmit: () => void;
+  onDone: () => void;
   onForceEnd: () => void;
   onReaction: (emoji: string) => void;
 }) {
-  const doneCount = submittedPlayerIds.length;
+  const activePlayers = players.filter((p) => !p.isSpectating);
+  const doneCount = donePlayerIds.length;
 
   return (
     <>
@@ -371,12 +385,12 @@ function RelaxedSidebar({
       <section className="p-4 border-t border-[#1a2333] flex flex-col gap-3">
         <div className="flex items-center justify-between">
           <span className="text-[10px] font-bold uppercase tracking-widest text-[#6b7280]">Status</span>
-          <span className="text-xs font-bold text-[#3b82f6]">Players done: {doneCount}/{players.length}</span>
+          <span className="text-xs font-bold text-[#3b82f6]">Players done: {doneCount}/{activePlayers.length}</span>
         </div>
 
         <div className="flex flex-col gap-1.5">
-          {players.map((p) => {
-            const done = submittedPlayerIds.includes(p.id);
+          {activePlayers.map((p) => {
+            const done = donePlayerIds.includes(p.id);
             return (
               <div key={p.id} className="flex items-center gap-2">
                 {done ? (
@@ -394,7 +408,7 @@ function RelaxedSidebar({
 
         {/* Done button */}
         <button
-          onClick={onSubmit}
+          onClick={onDone}
           disabled={submitted}
           className="w-full h-10 rounded-xl font-bold text-sm flex items-center justify-center gap-2 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
           style={{
@@ -442,7 +456,7 @@ function RelaxedSidebar({
 
 // --- Shared sidebar components ---
 
-function PlayerList({ players, playerId }: { players: { id: string; displayName: string; isHost: boolean }[]; playerId: string | null }) {
+function PlayerList({ players, playerId }: { players: { id: string; displayName: string; isHost: boolean; isSpectating?: boolean }[]; playerId: string | null }) {
   return (
     <section className="p-4 border-b border-[#1a2333] flex flex-col gap-2">
       <div className="flex items-center justify-between">
@@ -459,6 +473,11 @@ function PlayerList({ players, playerId }: { players: { id: string; displayName:
             {p.isHost && (
               <span className="text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded-full bg-[#1f2937] text-[#ec4899] border border-[#ec4899]/30">
                 HOST
+              </span>
+            )}
+            {p.isSpectating && (
+              <span className="text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded-full bg-[#1f2937] text-[#6b7280] border border-[#374151]">
+                SPEC
               </span>
             )}
           </div>

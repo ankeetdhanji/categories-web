@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { useGame, type GamePhase } from '../context/GameContext';
+import { useGame, type GamePhase, type RoundInfo } from '../context/GameContext';
 import { useSignalREvent } from '../hooks/useSignalR';
 import { api, type RoundReviewResult, type AnswerEntry, type FinalLeaderboardEntry } from '../services/api';
 import { HubEvents, sendReaction } from '../services/signalr';
@@ -22,7 +22,7 @@ export default function ReviewPage() {
     gameId, playerId, isHost,
     players, maxRounds,
     currentRound, reviewRoundNumber, leaderboard,
-    setFinalResult, setPhase,
+    setFinalResult, setPhase, setCurrentRound,
   } = useGame();
 
   // reviewRoundNumber is set by LeaderboardUpdated, which fires after RoundEnded.
@@ -70,6 +70,12 @@ export default function ReviewPage() {
     }, 1000);
     return () => clearInterval(id);
   }, [categoryIndex, showLeaderboard, isHost]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Next round auto-started by server — transition back to answering
+  useSignalREvent(HubEvents.RoundStarted, (payload) => {
+    setCurrentRound(payload as RoundInfo);
+    setPhase('answering');
+  });
 
   // SignalR: another client advanced (or this client's own advance was echoed back)
   useSignalREvent(HubEvents.CategoryAdvanced, (data) => {
