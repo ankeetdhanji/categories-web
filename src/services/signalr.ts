@@ -36,6 +36,10 @@ export async function sendReaction(gameId: string, emoji: string): Promise<void>
   await getConnection().invoke('SendReaction', gameId, emoji);
 }
 
+export async function notifyAnswerPresence(gameId: string, playerId: string, category: string, hasAnswer: boolean): Promise<void> {
+  await getConnection().invoke('NotifyAnswerPresence', gameId, playerId, category, hasAnswer);
+}
+
 // --- Event constants matching GameHubEvents on the server ---
 export const HubEvents = {
   PlayerJoined: 'PlayerJoined',
@@ -55,4 +59,5 @@ export const HubEvents = {
   CategoryAdvanced: 'CategoryAdvanced',
   DisputeVoteUpdated: 'DisputeVoteUpdated',
   ReviewComplete: 'ReviewComplete',
+  PlayerAnswerUpdated: 'PlayerAnswerUpdated',
 } as const;

@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useGame, type RoundInfo } from '../context/GameContext';
 import { useSignalREvent } from '../hooks/useSignalR';
 import { api } from '../services/api';
-import { sendReaction, HubEvents } from '../services/signalr';
+import { sendReaction, notifyAnswerPresence, HubEvents } from '../services/signalr';
 
 const REACTIONS = ['🔥', '😂', '😎', '🤔', '👏', '✨'];
 
@@ -17,6 +17,7 @@ export default function RoundPage() {
   const isCountdown = phase === 'countdown';
 
   const [answers, setAnswers] = useState<Record<string, string>>({});
+  const [answerPresence, setAnswerPresence] = useState<Record<string, string[]>>({});
   const [submitted, setSubmitted] = useState(false);
   const [secondsLeft, setSecondsLeft] = useState<number | null>(null);
   const [countdownSeconds, setCountdownSeconds] = useState(5);
@@ -38,6 +39,19 @@ export default function RoundPage() {
     const d = data as { roundNumber: number; leaderboard: { playerId: string; displayName: string; totalScore: number; roundScore: number }[] };
     setLeaderboard(d.leaderboard);
     setReviewRoundNumber(d.roundNumber);
+  });
+
+  // Track per-category answer presence for other players (badge display)
+  useSignalREvent(HubEvents.PlayerAnswerUpdated, (data) => {
+    const { playerId: pid, category, hasAnswer } = data as { playerId: string; category: string; hasAnswer: boolean };
+    setAnswerPresence((prev) => {
+      const current = prev[category] ?? [];
+      if (hasAnswer) {
+        return current.includes(pid) ? prev : { ...prev, [category]: [...current, pid] };
+      } else {
+        return { ...prev, [category]: current.filter((id) => id !== pid) };
+      }
+    });
   });
 
   // Track who has clicked Done in relaxed mode
@@ -92,6 +106,7 @@ export default function RoundPage() {
   // Reset state when a new round starts
   useEffect(() => {
     setAnswers({});
+    setAnswerPresence({});
     setSubmitted(false);
     submittedRef.current = false;
     setSecondsLeft(null);
@@ -155,7 +170,11 @@ export default function RoundPage() {
       else if (e.key === 'Enter') handleSubmit();
     } else if (e.key === 'Escape') {
       const category = categories[index];
+      const wasFilled = !!(answers[category]?.trim());
       setAnswers((prev) => ({ ...prev, [category]: '' }));
+      if (wasFilled && gameId && playerId) {
+        notifyAnswerPresence(gameId, playerId, category, false).catch(() => {});
+      }
     }
   }
 
@@ -218,7 +237,7 @@ export default function RoundPage() {
 
         {/* Keyboard hint */}
         {!isCountdown && (
-          <div className="px-5 pb-2 flex items-center gap-1">
+          <div className="hidden md:flex px-5 pb-2 items-center gap-1">
             <span className="text-[10px] text-[#4b5563]">Tab / Enter to move</span>
             <span className="text-[10px] text-[#374151]">•</span>
             <span className="text-[10px] text-[#4b5563]">Esc to clear</span>
@@ -229,15 +248,26 @@ export default function RoundPage() {
       {/* Body: grid + sidebar */}
       <div className="flex-1 flex overflow-hidden">
         {/* Main: category grid */}
-        <main className="flex-1 overflow-y-auto p-4">
+        <main className="flex-1 overflow-y-auto p-4 pb-20 md:pb-4">
           <div className="grid grid-cols-2 gap-3 max-w-3xl">
             {categories.map((category, i) => {
               const filled = !!answers[category]?.trim();
+              const presenceIds = (answerPresence[category] ?? []).filter((id) => id !== playerId);
+              const presencePlayers = presenceIds.map((id) => players.find((p) => p.id === id)).filter(Boolean) as typeof players;
               return (
                 <div
                   key={category}
-                  className={`bg-[#111827] border rounded-xl px-4 py-3 transition-colors ${filled ? 'border-[#3b82f6]' : 'border-[#263244]'}`}
+                  className={`relative bg-[#111827] border rounded-xl px-4 py-3 transition-colors ${filled ? 'border-[#3b82f6]' : 'border-[#263244]'}`}
                 >
+                  {presencePlayers.length > 0 && (
+                    <div className="absolute top-2 right-2 flex items-center">
+                      {presencePlayers.slice(0, 3).map((p, idx) => (
+                        <div key={p.id} style={{ marginLeft: idx === 0 ? 0 : -6, zIndex: presencePlayers.length - idx }}>
+                          <PlayerAvatar name={p.displayName} size={20} />
+                        </div>
+                      ))}
+                    </div>
+                  )}
                   <label className="block text-[10px] font-bold uppercase tracking-widest text-[#6b7280] mb-1.5">
                     {category}
                   </label>
@@ -246,7 +276,15 @@ export default function RoundPage() {
                     type="text"
                     disabled={submitted}
                     value={answers[category] ?? ''}
-                    onChange={(e) => setAnswers((prev) => ({ ...prev, [category]: e.target.value }))}
+                    onChange={(e) => {
+                      const newVal = e.target.value;
+                      const wasFilled = !!(answers[category]?.trim());
+                      const nowFilled = !!newVal.trim();
+                      setAnswers((prev) => ({ ...prev, [category]: newVal }));
+                      if (gameId && playerId && wasFilled !== nowFilled) {
+                        notifyAnswerPresence(gameId, playerId, category, nowFilled).catch(() => {});
+                      }
+                    }}
                     onKeyDown={(e) => handleKeyDown(e, i)}
                     placeholder={`Starts with ${currentRound?.letter ?? '?'}…`}
                     className="w-full bg-transparent text-[#e5e7eb] text-sm font-medium outline-none placeholder-[#374151] disabled:opacity-50"
@@ -258,7 +296,7 @@ export default function RoundPage() {
         </main>
 
         {/* Sidebar */}
-        <aside className="w-72 shrink-0 border-l border-[#263244] bg-[#0d1117] flex flex-col overflow-y-auto">
+        <aside className="hidden md:flex md:w-72 shrink-0 border-l border-[#263244] bg-[#0d1117] flex-col overflow-y-auto">
           {isTimedMode ? (
             <TimedSidebar
               filledCount={filledCount}
@@ -284,13 +322,51 @@ export default function RoundPage() {
             />
           )}
         </aside>
+
+        {/* Mobile-only bottom action bar */}
+        <div className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-[#0d1117] border-t border-[#263244] px-4 pt-3"
+          style={{ paddingBottom: 'max(0.75rem, env(safe-area-inset-bottom))' }}>
+          <div className="flex items-center gap-3">
+            {/* Reactions (compact) */}
+            <div className="flex items-center gap-2 flex-1">
+              {REACTIONS.map((emoji) => (
+                <button key={emoji} onClick={() => handleReaction(emoji)}
+                  className="text-lg leading-none active:scale-95 transition-transform">
+                  {emoji}
+                </button>
+              ))}
+            </div>
+            {/* Timed: progress pill */}
+            {isTimedMode && (
+              <span className="text-xs font-mono text-[#9ca3af]">
+                {filledCount}/{categories.length}
+              </span>
+            )}
+            {/* Relaxed: Done button */}
+            {!isTimedMode && (
+              <button onClick={handleDone} disabled={submitted}
+                className="h-10 px-5 rounded-xl font-bold text-sm disabled:opacity-50"
+                style={{ background: submitted ? '#1f2937' : '#3b82f6', color: submitted ? '#6b7280' : '#0b0f14' }}>
+                {submitted ? 'Submitted ✓' : 'Done'}
+              </button>
+            )}
+            {/* Host: force end (both modes) */}
+            {isHost && (
+              <button onClick={handleForceEnd} disabled={endingRound}
+                className="h-10 px-3 rounded-xl font-bold text-xs disabled:opacity-50"
+                style={{ border: '1px solid #ef4444', color: '#ef4444' }}>
+                {endingRound ? '…' : 'End'}
+              </button>
+            )}
+          </div>
+        </div>
       </div>
 
       {/* Countdown overlay */}
       {isCountdown && (
         <CountdownOverlay
           seconds={countdownSeconds}
-          letter={currentRound?.letter ?? countdownLetter ?? '?'}
+          letter={countdownLetter ?? currentRound?.letter ?? '?'}
           roundNumber={currentRound?.roundNumber ?? countdownRoundNumber ?? null}
         />
       )}

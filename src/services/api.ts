@@ -9,7 +9,8 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
     const text = await res.text();
     throw new Error(`API error ${res.status}: ${text}`);
   }
-  return res.json() as Promise<T>;
+  const text = await res.text();
+  return (text ? JSON.parse(text) : undefined) as T;
 }
 
 export interface GameSettings {
@@ -156,6 +157,12 @@ export const api = {
       `/api/games/${gameId}/finalize`,
       { method: 'POST', body: JSON.stringify({ playerId }) },
     ),
+
+  startNextRound: (gameId: string, playerId: string) =>
+    request<void>(`/api/games/${gameId}/rounds/next`, {
+      method: 'POST',
+      body: JSON.stringify({ playerId }),
+    }),
 
   getDefaultCategories: () =>
     request<{ categories: string[] }>('/api/categories/defaults'),

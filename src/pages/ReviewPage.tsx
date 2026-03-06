@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useGame, type GamePhase, type RoundInfo } from '../context/GameContext';
 import { useSignalREvent } from '../hooks/useSignalR';
-import { api, type RoundReviewResult, type AnswerEntry, type FinalLeaderboardEntry } from '../services/api';
+import { api, type RoundReviewResult, type AnswerEntry, type LeaderboardEntry, type FinalLeaderboardEntry } from '../services/api';
 import { HubEvents, sendReaction } from '../services/signalr';
 
 const CATEGORY_REVIEW_SECONDS = 30;
@@ -23,6 +23,8 @@ export default function ReviewPage() {
     players, maxRounds,
     currentRound, reviewRoundNumber, leaderboard,
     setFinalResult, setPhase, setCurrentRound,
+    setLeaderboard, setReviewRoundNumber,
+    setCountdownStartAt, setCountdownInfo,
   } = useGame();
 
   // reviewRoundNumber is set by LeaderboardUpdated, which fires after RoundEnded.
@@ -91,12 +93,22 @@ export default function ReviewPage() {
     setShowLeaderboard(true);
   });
 
-  // SignalR: final leaderboard after host calls finalize (roundNumber === -1)
+  // SignalR: leaderboard update — either mid-round or final (roundNumber === -1)
   useSignalREvent(HubEvents.LeaderboardUpdated, (data) => {
-    const d = data as { roundNumber: number; leaderboard: FinalLeaderboardEntry[]; winnerPlayerIds: string[]; bonusPerWinner: number };
-    if (d.roundNumber !== -1) return;
-    setFinalResult(d.winnerPlayerIds, d.bonusPerWinner, d.leaderboard);
-    setPhase('gameOver');
+    const d = data as {
+      roundNumber: number;
+      leaderboard: (LeaderboardEntry | FinalLeaderboardEntry)[];
+      winnerPlayerIds?: string[];
+      bonusPerWinner?: number;
+    };
+    if (d.roundNumber === -1) {
+      setFinalResult(d.winnerPlayerIds!, d.bonusPerWinner!, d.leaderboard as FinalLeaderboardEntry[]);
+      setPhase('gameOver');
+    } else {
+      // Mid-game round leaderboard — may arrive after RoundPage has unmounted
+      setLeaderboard(d.leaderboard as LeaderboardEntry[]);
+      setReviewRoundNumber(d.roundNumber);
+    }
   });
 
   // SignalR: dispute vote progress
@@ -109,6 +121,14 @@ export default function ReviewPage() {
   useSignalREvent(HubEvents.DisputeResolved, (data) => {
     const { disputeId, isValid } = data as { disputeId: string; isValid: boolean };
     setResolvedDisputes((prev) => ({ ...prev, [disputeId]: isValid }));
+  });
+
+  // SignalR: host started next round — show countdown before answering begins
+  useSignalREvent(HubEvents.GameCountdown, (data) => {
+    const { startAt, letter, roundNumber } = data as { startAt: string; letter: string; roundNumber: number };
+    setCountdownStartAt(startAt);
+    setCountdownInfo(letter, roundNumber);
+    setPhase('countdown');
   });
 
   async function handleAdvance() {
@@ -220,7 +240,7 @@ export default function ReviewPage() {
         </div>
 
         {/* Center: phase pill */}
-        <div style={{ flex: '1 0 0', display: 'flex', justifyContent: 'center' }}>
+        <div className="hidden md:flex" style={{ flex: '1 0 0', justifyContent: 'center' }}>
           <div className="flex items-center gap-2 px-3 rounded-full" style={{ height: 29, background: '#161f2b', border: '1px solid #263244' }}>
             <div className="rounded-full shrink-0" style={{ width: 6, height: 6, background: '#3b82f6', opacity: 0.51 }} />
             <span className="font-bold text-xs tracking-wide" style={{ color: '#e5e7eb' }}>Review answers</span>
@@ -244,7 +264,7 @@ export default function ReviewPage() {
             Category {categoryIndex + 1} of {totalCategories}
           </span>
           <div className="flex items-center gap-3">
-            <h2 className="font-bold text-5xl tracking-tight" style={{ color: '#e5e7eb', letterSpacing: '-0.85px' }}>
+            <h2 className="font-bold text-3xl md:text-5xl tracking-tight" style={{ color: '#e5e7eb', letterSpacing: '-0.85px' }}>
               {currentCategory.name}
             </h2>
             <div className="rotate-3 shrink-0">
@@ -299,7 +319,7 @@ export default function ReviewPage() {
       </main>
 
       {/* Footer */}
-      <footer className="fixed bottom-0 left-0 right-0 z-20 flex items-center justify-between px-6" style={{ height: 67, background: 'rgba(11,15,20,0.9)', borderTop: '1px solid #263244' }}>
+      <footer className="fixed bottom-0 left-0 right-0 z-20 flex items-center justify-between px-4 md:px-6 py-3" style={{ paddingBottom: 'max(0.75rem, env(safe-area-inset-bottom))', background: 'rgba(11,15,20,0.9)', borderTop: '1px solid #263244' }}>
         {/* Emoji button */}
         <button
           onClick={() => sendReaction(gameId ?? '', '🔥')}
@@ -327,7 +347,7 @@ export default function ReviewPage() {
             <SkipForwardIcon />
           </button>
         )}
-        {!isHost && <div style={{ width: 155 }} />}
+        {!isHost && <div className="w-[100px] md:w-[155px]" />}
       </footer>
     </div>
   );
@@ -359,7 +379,7 @@ function AnswerRow({ entry, category, playerId, myLike, myVote, progress, resolv
 
   return (
     <div
-      className="flex items-center justify-between px-6"
+      className="flex items-center justify-between px-4 md:px-6"
       style={{
         minHeight: 109,
         background: rowBg,
@@ -415,7 +435,7 @@ function AnswerRow({ entry, category, playerId, myLike, myVote, progress, resolv
       </div>
 
       {/* Right: action area */}
-      <div className="flex items-center justify-end shrink-0 ml-4" style={{ minWidth: 200 }}>
+      <div className="flex items-center justify-end shrink-0 ml-3 min-w-[130px] md:min-w-[200px]">
         {entry.isDisputed && !isAuthor ? (
           <DisputeActions
             entry={entry}
@@ -439,7 +459,7 @@ function AnswerRow({ entry, category, playerId, myLike, myVote, progress, resolv
             onClick={() => onLike(category, entry.normalizedAnswer)}
             className="flex items-center justify-center rounded-full transition-all"
             style={{
-              width: 38, height: 38,
+              width: 44, height: 44,
               background: hasLiked ? 'rgba(236,72,153,0.15)' : '#161f2b',
               border: `1px solid ${hasLiked ? '#ec4899' : '#263244'}`,
             }}
@@ -475,7 +495,7 @@ function DisputeActions({ entry, myVote, hasVoted, progress, resolved, onVote }:
               disabled={hasVoted}
               className="flex items-center gap-1 px-3 rounded-[10px] font-bold text-xs transition-opacity disabled:opacity-50"
               style={{
-                height: 29,
+                height: 38,
                 border: '1px solid rgba(34,197,94,0.3)',
                 color: '#22c55e',
                 background: myVote === true ? 'rgba(34,197,94,0.1)' : 'transparent',
@@ -488,7 +508,7 @@ function DisputeActions({ entry, myVote, hasVoted, progress, resolved, onVote }:
               disabled={hasVoted}
               className="flex items-center gap-1 px-3 rounded-[10px] font-bold text-xs transition-opacity disabled:opacity-50"
               style={{
-                height: 29,
+                height: 38,
                 border: '1px solid rgba(239,68,68,0.3)',
                 color: '#ef4444',
                 background: myVote === false ? 'rgba(239,68,68,0.1)' : 'transparent',
@@ -524,6 +544,7 @@ function LeaderboardView({ leaderboard, roundNumber, maxRounds, isHost, gameId, 
   setPhase: (phase: GamePhase) => void;
 }) {
   const [finalizing, setFinalizing] = useState(false);
+  const [starting, setStarting] = useState(false);
   const isLastRound = roundNumber === maxRounds;
 
   async function handleFinalize() {
@@ -535,6 +556,17 @@ function LeaderboardView({ leaderboard, roundNumber, maxRounds, isHost, gameId, 
       setPhase('gameOver');
     } catch {
       setFinalizing(false);
+    }
+  }
+
+  async function handleStartNextRound() {
+    if (!gameId || !playerId || starting) return;
+    setStarting(true);
+    try {
+      await api.startNextRound(gameId, playerId);
+      // RoundStarted SignalR event will trigger the phase transition for all clients
+    } catch {
+      setStarting(false);
     }
   }
 
@@ -586,10 +618,17 @@ function LeaderboardView({ leaderboard, roundNumber, maxRounds, isHost, gameId, 
           >
             {finalizing ? 'Finalizing…' : '🏆 Finalize Game'}
           </button>
+        ) : isHost ? (
+          <button
+            onClick={handleStartNextRound}
+            disabled={starting}
+            className="w-full h-14 rounded-[14px] font-bold text-lg flex items-center justify-center gap-2 transition-all disabled:opacity-50"
+            style={{ background: '#3b82f6', color: '#0b0f14', boxShadow: '0 0 20px rgba(59,130,246,0.3)' }}
+          >
+            {starting ? 'Starting…' : 'Start Next Round →'}
+          </button>
         ) : (
-          <p className="text-center text-sm" style={{ color: '#6b7280' }}>
-            {isHost ? "Start the next round when you're ready." : 'Waiting for the host to start the next round…'}
-          </p>
+          <p className="text-center text-sm" style={{ color: '#6b7280' }}>Waiting for the host to start the next round…</p>
         )}
         {!isHost && isLastRound && (
           <p className="text-center text-sm" style={{ color: '#6b7280' }}>Waiting for the host to finalize the game…</p>

@@ -155,6 +155,19 @@ export default function LobbyPage() {
     if (!gameId || !playerId) return;
     setStarting(true);
     setStartError('');
+
+    // Auto-commit unsaved edits before starting
+    if (editingCategories) {
+      let committed = draft!;
+      const pending = categoryInput.trim();
+      if (pending && !committed.categories.some((c) => c.toLowerCase() === pending.toLowerCase())) {
+        committed = { ...committed, categories: [...committed.categories, pending] };
+        setCategoryInput('');
+      }
+      await applySettings(committed);
+      setEditingCategories(false);
+    }
+
     try {
       await api.startGame(gameId, playerId);
     } catch (err) {
@@ -185,11 +198,14 @@ export default function LobbyPage() {
     setDraft(updated);
     setCategoryInput('');
     categoryInputRef.current?.focus();
+    applySettings(updated);
   }
 
   function handleRemoveCategory(cat: string) {
     if (!draft) return;
-    setDraft({ ...draft, categories: draft.categories.filter((c) => c !== cat) });
+    const updated = { ...draft, categories: draft.categories.filter((c) => c !== cat) };
+    setDraft(updated);
+    applySettings(updated);
   }
 
   function handleCategoriesDone() {
@@ -235,7 +251,7 @@ export default function LobbyPage() {
               <div className="absolute inset-0 bg-gradient-to-b from-[#3b82f6] to-[#ec4899] opacity-20" />
               <span className="relative font-bold text-[#e5e7eb] text-sm">C</span>
             </div>
-            <span className="font-bold text-[#e5e7eb] text-lg tracking-tight">Categories</span>
+            <span className="hidden sm:block font-bold text-[#e5e7eb] text-lg tracking-tight">Categories</span>
           </div>
 
           <div className="flex flex-col items-center gap-0.5">
@@ -360,7 +376,7 @@ export default function LobbyPage() {
               </div>
 
               {/* Rounds + Seconds side by side */}
-              <div className="flex gap-4 items-start md:justify-between">
+              <div className="flex flex-wrap gap-4 items-start md:justify-between">
                 {/* Rounds stepper */}
                 <div className="flex flex-col gap-2">
                   <label className="text-xs font-medium text-[#9ca3af] uppercase tracking-wide">Rounds</label>
@@ -558,7 +574,7 @@ export default function LobbyPage() {
       </div>
 
       {/* Bottom action bar */}
-      <div className="fixed bottom-0 left-0 right-0 z-40 px-6 pb-6 pt-4 bg-gradient-to-t from-[#0b0f14] to-transparent">
+      <div className="fixed bottom-0 left-0 right-0 z-40 px-6 pt-4 bg-gradient-to-t from-[#0b0f14] to-transparent" style={{ paddingBottom: 'max(1.5rem, env(safe-area-inset-bottom))' }}>
         <div className="max-w-5xl mx-auto flex flex-col gap-2">
           {isHost ? (
             <button
