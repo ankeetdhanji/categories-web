@@ -4,13 +4,24 @@ import { useGame } from '../context/GameContext';
 
 export default function HomePage() {
   const { setGameId, setJoinCode, setPlayer, setHost, setPhase, setPlayers, setFullSettings } = useGame();
+  const [displayName, setDisplayName] = useState(() => localStorage.getItem('displayName') ?? '');
+  const [nameError, setNameError] = useState('');
   const [joinCode, setJoinCodeInput] = useState('');
   const [joinError, setJoinError] = useState('');
   const [isJoining, setIsJoining] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
   const [createError, setCreateError] = useState('');
 
+  function getValidatedName(): string | null {
+    const name = displayName.trim();
+    if (!name) { setNameError('Please enter your name.'); return null; }
+    if (name.length > 20) { setNameError('Name must be 20 characters or fewer.'); return null; }
+    return name;
+  }
+
   async function handleJoin() {
+    const name = getValidatedName();
+    if (!name) return;
     const code = joinCode.trim().toUpperCase();
     if (!code) {
       setJoinError('Please enter a game code.');
@@ -20,8 +31,9 @@ export default function HomePage() {
     setIsJoining(true);
     try {
       const playerId = crypto.randomUUID();
-      const res = await api.joinGame(code, playerId, 'Guest');
-      setPlayer(playerId, 'Guest');
+      const res = await api.joinGame(code, playerId, name);
+      localStorage.setItem('displayName', name);
+      setPlayer(playerId, name);
       setGameId(res.gameId);
       setJoinCode(code);
       setHost(false);
@@ -36,16 +48,19 @@ export default function HomePage() {
   }
 
   async function handleCreate() {
+    const name = getValidatedName();
+    if (!name) return;
     setIsCreating(true);
     setCreateError('');
     try {
       const playerId = crypto.randomUUID();
-      const res = await api.createGame(playerId, 'Host');
-      setPlayer(playerId, 'Host');
+      const res = await api.createGame(playerId, name);
+      localStorage.setItem('displayName', name);
+      setPlayer(playerId, name);
       setGameId(res.gameId);
       setJoinCode(res.joinCode);
       setHost(true);
-      setPlayers([{ id: playerId, displayName: 'Host', isHost: true, isGuest: false, totalScore: 0 }]);
+      setPlayers([{ id: playerId, displayName: name, isHost: true, isGuest: false, totalScore: 0 }]);
       setFullSettings(res.settings);
       setPhase('lobby');
     } catch (err) {
@@ -123,6 +138,29 @@ export default function HomePage() {
             boxShadow: '0px 25px 50px 0px rgba(0,0,0,0.25)',
           }}
         >
+          {/* Name section */}
+          <div className="flex flex-col gap-2 mb-6">
+            <label className="text-xs font-medium uppercase tracking-widest" style={{ color: '#9ca3af', paddingLeft: 4 }}>
+              Your Name
+            </label>
+            <input
+              value={displayName}
+              onChange={(e) => { setDisplayName(e.target.value); setNameError(''); }}
+              onKeyDown={(e) => e.key === 'Enter' && handleJoin()}
+              placeholder="e.g. Alex"
+              maxLength={20}
+              className="w-full rounded-[10px] px-4 text-lg font-mono tracking-wide outline-none focus:ring-2"
+              style={{
+                height: 48,
+                background: '#161f2b',
+                border: '1px solid #263244',
+                color: '#e5e7eb',
+                letterSpacing: '0.05em',
+              }}
+            />
+            {nameError && <p className="text-xs pl-1" style={{ color: '#f87171' }}>{nameError}</p>}
+          </div>
+
           {/* Join section */}
           <div className="flex flex-col gap-2">
             <label className="text-xs font-medium uppercase tracking-widest" style={{ color: '#9ca3af', paddingLeft: 4 }}>

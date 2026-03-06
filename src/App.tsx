@@ -6,6 +6,8 @@ import RoundPage from './pages/RoundPage';
 import ReviewPage from './pages/ReviewPage';
 import GameOverPage from './pages/GameOverPage';
 import { useConnectionStatus } from './hooks/useConnectionStatus';
+import { useSignalREvent } from './hooks/useSignalR';
+import { HubEvents } from './services/signalr';
 import { api } from './services/api';
 
 // GameStatus integer → frontend phase
@@ -34,6 +36,23 @@ function GameRouter() {
   }
 }
 
+// Handles global SignalR events that must fire regardless of which page is active.
+function GlobalSignalRHandlers() {
+  const { playerId, players, setPlayers, setHost, removePlayer } = useGame();
+
+  useSignalREvent(HubEvents.PlayerLeft, (data) => {
+    removePlayer((data as { playerId: string }).playerId);
+  });
+
+  useSignalREvent(HubEvents.HostChanged, (data) => {
+    const { hostPlayerId: newHostId } = data as { hostPlayerId: string };
+    setPlayers(players.map((p) => ({ ...p, isHost: p.id === newHostId })));
+    setHost(playerId === newHostId);
+  });
+
+  return null;
+}
+
 function ReconnectBanner() {
   const { gameId, phase, setPhase, setPlayers, setFullSettings, setCurrentRound } = useGame();
   const { isReconnecting } = useConnectionStatus();
@@ -53,6 +72,7 @@ function ReconnectBanner() {
           isHost: p.id === game.hostPlayerId,
           isGuest: p.isGuest,
           totalScore: p.totalScore,
+          isSpectating: p.isSpectating,
         })),
       );
       setFullSettings(game.settings);
@@ -92,6 +112,7 @@ function ReconnectBanner() {
 export default function App() {
   return (
     <GameProvider>
+      <GlobalSignalRHandlers />
       <ReconnectBanner />
       <GameRouter />
     </GameProvider>

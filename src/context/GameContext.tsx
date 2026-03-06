@@ -18,6 +18,7 @@ export interface Player {
   isHost: boolean;
   isGuest: boolean;
   totalScore: number;
+  isSpectating?: boolean;
 }
 
 export interface RoundInfo {

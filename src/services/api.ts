@@ -9,7 +9,8 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
     const text = await res.text();
     throw new Error(`API error ${res.status}: ${text}`);
   }
-  return res.json() as Promise<T>;
+  const text = await res.text();
+  return (text ? JSON.parse(text) : undefined) as T;
 }
 
 export interface GameSettings {
@@ -74,7 +75,7 @@ export const api = {
   joinGame: (joinCode: string, playerId: string, displayName: string) =>
     request<{
       gameId: string;
-      players: { id: string; displayName: string; isGuest: boolean; totalScore: number }[];
+      players: { id: string; displayName: string; isGuest: boolean; totalScore: number; isSpectating?: boolean }[];
       settings: GameSettings;
     }>(`/api/games/${joinCode}/join`, {
       method: 'POST',
@@ -95,7 +96,7 @@ export const api = {
       /** Integer value of GameStatus enum: 0=Lobby 1=Starting 2=InRound 3=RoundResults 4=Disputes 5=BestAnswerVoting 6=Leaderboard 7=Finished */
       status: number;
       currentRoundIndex: number;
-      players: { id: string; displayName: string; isGuest: boolean; totalScore: number }[];
+      players: { id: string; displayName: string; isGuest: boolean; totalScore: number; isSpectating?: boolean }[];
       settings: GameSettings;
       rounds: {
         roundNumber: number;
@@ -110,6 +111,12 @@ export const api = {
     request<void>(`/api/games/${gameId}/rounds/current/answers`, {
       method: 'POST',
       body: JSON.stringify({ playerId, answers }),
+    }),
+
+  markDone: (gameId: string, playerId: string) =>
+    request<void>(`/api/games/${gameId}/rounds/current/done`, {
+      method: 'POST',
+      body: JSON.stringify({ playerId }),
     }),
 
   forceEndRound: (gameId: string, playerId: string) =>
@@ -150,6 +157,12 @@ export const api = {
       `/api/games/${gameId}/finalize`,
       { method: 'POST', body: JSON.stringify({ playerId }) },
     ),
+
+  startNextRound: (gameId: string, playerId: string) =>
+    request<void>(`/api/games/${gameId}/rounds/next`, {
+      method: 'POST',
+      body: JSON.stringify({ playerId }),
+    }),
 
   getDefaultCategories: () =>
     request<{ categories: string[] }>('/api/categories/defaults'),
