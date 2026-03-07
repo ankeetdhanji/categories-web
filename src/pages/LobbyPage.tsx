@@ -20,7 +20,7 @@ interface FloatingReaction {
 export default function LobbyPage() {
   const {
     gameId, joinCode, playerId, isHost, players, settings,
-    setFullSettings, setPlayers, addPlayer,
+    setFullSettings, addPlayer,
     setPhase, setCountdownStartAt, setCountdownInfo,
   } = useGame();
 
@@ -54,29 +54,31 @@ export default function LobbyPage() {
     if (!gameId || !playerId) return;
     startConnection()
       .then(() => joinGameGroup(gameId, playerId))
+      // After joining the group, fetch the authoritative snapshot.
+      // Anyone who joined before us is in this snapshot.
+      // Anyone who joins after this point triggers a PlayerJoined event we now receive.
+      .then(() => api.getGame(gameId))
+      .then((game) => {
+        // Use addPlayer (not setPlayers) to merge without overwriting
+        // any PlayerJoined events that arrived between group join and this fetch.
+        game.players.forEach((p) =>
+          addPlayer({
+            id: p.id,
+            displayName: p.displayName,
+            isHost: p.id === game.hostPlayerId,
+            isGuest: p.isGuest,
+            totalScore: p.totalScore,
+            isSpectating: p.isSpectating,
+          })
+        );
+        // Freshen settings from server (handles case where context was reset)
+        if (game.settings) {
+          setFullSettings(game.settings);
+          setDraft((d) => d ?? game.settings);
+        }
+      })
       .catch(console.error);
   }, [gameId, playerId]);
-
-  useEffect(() => {
-    if (!gameId) return;
-    api.getGame(gameId).then((game) => {
-      setPlayers(
-        game.players.map((p) => ({
-          id: p.id,
-          displayName: p.displayName,
-          isHost: p.id === game.hostPlayerId,
-          isGuest: p.isGuest,
-          totalScore: p.totalScore,
-          isSpectating: p.isSpectating,
-        })),
-      );
-      // Freshen settings from server (handles case where context was reset)
-      if (game.settings) {
-        setFullSettings(game.settings);
-        setDraft((d) => d ?? game.settings);
-      }
-    });
-  }, [gameId]);
 
   // Fetch system defaults (cache in localStorage) + host's saved categories
   useEffect(() => {
