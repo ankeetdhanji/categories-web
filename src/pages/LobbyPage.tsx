@@ -3,6 +3,7 @@ import { useGame, type Player } from '../context/GameContext';
 import { useSignalREvent } from '../hooks/useSignalR';
 import { api, type GameSettings } from '../services/api';
 import { startConnection, joinGameGroup, sendReaction, HubEvents } from '../services/signalr';
+import { STATUS_TO_PHASE } from '../App';
 
 const REACTIONS = ['🔥', '👏', '😂', '🎉', '💀'];
 const SECONDS_OPTIONS = [30, 60, 90, 120];
@@ -21,7 +22,7 @@ export default function LobbyPage() {
   const {
     gameId, joinCode, playerId, isHost, players, settings,
     setFullSettings, addPlayer,
-    setPhase, setCountdownStartAt, setCountdownInfo,
+    setPhase, setCountdownStartAt, setCountdownInfo, setCurrentRound,
   } = useGame();
 
   const [draft, setDraft] = useState<GameSettings | null>(null);
@@ -76,6 +77,27 @@ export default function LobbyPage() {
           setFullSettings(game.settings);
           setDraft((d) => d ?? game.settings);
         }
+
+        // Fix B: if the host started while joinGameGroup was in-flight, advance phase now.
+        if (game.status === 1) {
+          // Starting — countdown in progress
+          const r = game.rounds[0];
+          if (r) setCountdownInfo(r.letter, r.roundNumber);
+          setPhase('countdown');
+        } else if (game.status === 2) {
+          // InRound — round already started
+          const r = game.rounds[game.currentRoundIndex];
+          if (r) setCurrentRound({
+            roundNumber: r.roundNumber,
+            letter: r.letter,
+            categories: r.categories,
+            startedAt: r.startedAt,
+            endsAt: r.endedAt,
+          });
+          setPhase('answering');
+        } else if (game.status > 2) {
+          setPhase(STATUS_TO_PHASE[game.status] ?? 'lobby');
+        }
       })
       .catch(console.error);
   }, [gameId, playerId]);
@@ -111,6 +133,13 @@ export default function LobbyPage() {
     setCountdownStartAt(startAt);
     setCountdownInfo(letter, roundNumber);
     setPhase('countdown');
+  });
+  // Fix A: if GameCountdown was missed (player joined just before host clicked Start),
+  // RoundStarted is caught here so we transition directly to answering.
+  useSignalREvent(HubEvents.RoundStarted, (payload) => {
+    const p = payload as { roundNumber: number; letter: string; categories: string[]; startedAt: string | null; endsAt: string | null };
+    setCurrentRound(p);
+    setPhase('answering');
   });
   useSignalREvent(HubEvents.EmojiReaction, (data) => { spawnFloater((data as { emoji: string }).emoji); });
   useSignalREvent(HubEvents.SettingsUpdated, (data) => {
