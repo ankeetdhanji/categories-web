@@ -11,7 +11,7 @@ import { HubEvents } from './services/signalr';
 import { api } from './services/api';
 
 // GameStatus integer → frontend phase
-const STATUS_TO_PHASE: Record<number, GamePhase> = {
+export const STATUS_TO_PHASE: Record<number, GamePhase> = {
   0: 'lobby',      // Lobby
   1: 'countdown',  // Starting
   2: 'answering',  // InRound

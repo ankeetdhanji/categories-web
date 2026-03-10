@@ -1,9 +1,17 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { api } from '../services/api';
 import { useGame } from '../context/GameContext';
+import { STATUS_TO_PHASE } from '../App';
+
+interface ActiveGame {
+  gameId: string;
+  joinCode: string;
+  playerId: string;
+  displayName: string;
+}
 
 export default function HomePage() {
-  const { setGameId, setJoinCode, setPlayer, setHost, setPhase, setPlayers, setFullSettings } = useGame();
+  const { setGameId, setJoinCode, setPlayer, setHost, setPhase, setPlayers, setFullSettings, setCurrentRound } = useGame();
   const [displayName, setDisplayName] = useState(() => localStorage.getItem('displayName') ?? '');
   const [nameError, setNameError] = useState('');
   const [joinCode, setJoinCodeInput] = useState('');
@@ -11,6 +19,41 @@ export default function HomePage() {
   const [isJoining, setIsJoining] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
   const [createError, setCreateError] = useState('');
+  const [activeGame, setActiveGame] = useState<ActiveGame | null>(null);
+  const [checkingActiveGame, setCheckingActiveGame] = useState(true);
+  const [isRejoining, setIsRejoining] = useState(false);
+
+  useEffect(() => {
+    const stored = localStorage.getItem('active_game');
+    if (!stored) {
+      setCheckingActiveGame(false);
+      return;
+    }
+    let parsed: ActiveGame;
+    try {
+      parsed = JSON.parse(stored) as ActiveGame;
+    } catch {
+      localStorage.removeItem('active_game');
+      setCheckingActiveGame(false);
+      return;
+    }
+    api.getGame(parsed.gameId)
+      .then((game) => {
+        const stillActive = game.status < 7;
+        const stillInGame = game.players.some((p) => p.id === parsed.playerId);
+        if (stillActive && stillInGame) {
+          setActiveGame(parsed);
+        } else {
+          localStorage.removeItem('active_game');
+        }
+      })
+      .catch(() => {
+        localStorage.removeItem('active_game');
+      })
+      .finally(() => {
+        setCheckingActiveGame(false);
+      });
+  }, []);
 
   function getValidatedName(): string | null {
     const name = displayName.trim();
@@ -33,6 +76,7 @@ export default function HomePage() {
       const playerId = crypto.randomUUID();
       const res = await api.joinGame(code, playerId, name);
       localStorage.setItem('displayName', name);
+      localStorage.setItem('active_game', JSON.stringify({ gameId: res.gameId, joinCode: code, playerId, displayName: name }));
       setPlayer(playerId, name);
       setGameId(res.gameId);
       setJoinCode(code);
@@ -56,6 +100,7 @@ export default function HomePage() {
       const playerId = crypto.randomUUID();
       const res = await api.createGame(playerId, name);
       localStorage.setItem('displayName', name);
+      localStorage.setItem('active_game', JSON.stringify({ gameId: res.gameId, joinCode: res.joinCode, playerId, displayName: name }));
       setPlayer(playerId, name);
       setGameId(res.gameId);
       setJoinCode(res.joinCode);
@@ -67,6 +112,54 @@ export default function HomePage() {
       setCreateError(err instanceof Error ? err.message : 'Failed to create game. Is the server running?');
     } finally {
       setIsCreating(false);
+    }
+  }
+
+  async function handleRejoin() {
+    if (!activeGame) return;
+    setIsRejoining(true);
+    try {
+      const game = await api.getGame(activeGame.gameId);
+      const stillActive = game.status < 7;
+      const stillInGame = game.players.some((p) => p.id === activeGame.playerId);
+      if (!stillActive || !stillInGame) {
+        localStorage.removeItem('active_game');
+        setActiveGame(null);
+        return;
+      }
+      setPlayer(activeGame.playerId, activeGame.displayName);
+      setGameId(activeGame.gameId);
+      setJoinCode(activeGame.joinCode);
+      setHost(game.hostPlayerId === activeGame.playerId);
+      setPlayers(
+        game.players.map((p) => ({
+          id: p.id,
+          displayName: p.displayName,
+          isHost: p.id === game.hostPlayerId,
+          isGuest: p.isGuest,
+          totalScore: p.totalScore,
+          isSpectating: p.isSpectating,
+        })),
+      );
+      setFullSettings(game.settings);
+      if (game.status === 2 && game.currentRoundIndex >= 0) {
+        const r = game.rounds[game.currentRoundIndex];
+        if (r) {
+          setCurrentRound({
+            roundNumber: r.roundNumber,
+            letter: r.letter,
+            categories: r.categories,
+            startedAt: r.startedAt,
+            endsAt: r.endedAt,
+          });
+        }
+      }
+      setPhase(STATUS_TO_PHASE[game.status] ?? 'lobby');
+    } catch {
+      localStorage.removeItem('active_game');
+      setActiveGame(null);
+    } finally {
+      setIsRejoining(false);
     }
   }
 
@@ -128,6 +221,50 @@ export default function HomePage() {
             A real-time categories game
           </p>
         </div>
+
+        {/* Active Game panel */}
+        {!checkingActiveGame && activeGame !== null && (
+          <div
+            className="w-full rounded-2xl px-5 py-4 flex flex-col gap-1"
+            style={{
+              background: '#111827',
+              border: '1px solid #263244',
+            }}
+          >
+            <p className="text-xs font-medium uppercase tracking-widest mb-2" style={{ color: '#9ca3af' }}>
+              Active Game
+            </p>
+            <div className="flex items-center justify-between gap-3">
+              <div className="flex flex-col gap-0.5">
+                <span className="font-mono font-bold text-lg" style={{ color: '#e5e7eb', letterSpacing: '0.1em' }}>
+                  {activeGame.joinCode}
+                </span>
+                <span className="text-xs" style={{ color: '#6b7280' }}>
+                  as {activeGame.displayName}
+                </span>
+              </div>
+              <button
+                onClick={handleRejoin}
+                disabled={isRejoining}
+                className="flex items-center gap-1.5 rounded-[10px] px-4 font-bold text-sm transition-opacity disabled:opacity-60"
+                style={{
+                  height: 40,
+                  background: '#10b981',
+                  color: '#0b0f14',
+                  boxShadow: '0px 0px 12px 0px rgba(16,185,129,0.3)',
+                  flexShrink: 0,
+                }}
+              >
+                {isRejoining ? <Spinner /> : (
+                  <>
+                    <span>Rejoin</span>
+                    <ArrowRightIcon />
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        )}
 
         {/* Card */}
         <div
@@ -257,6 +394,7 @@ export default function HomePage() {
           <div className="rounded-full" style={{ width: 4, height: 4, background: '#6b7280' }} />
           <span>No matchmaking</span>
         </div>
+
       </div>
     </div>
   );
