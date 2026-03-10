@@ -56,6 +56,37 @@ export default function ReviewPage() {
       });
   }, [gameId, roundToFetch]);
 
+  // Fallback polling — recover from missed SignalR phase-transition events
+  const PHASE_POLL_INTERVAL_MS = 5_000;
+  useEffect(() => {
+    if (!gameId) return;
+    const id = setInterval(async () => {
+      try {
+        const game = await api.getGame(gameId);
+        // status 1 = Starting (countdown), 2 = InRound — game has moved to next round
+        if ((game.status === 1 || game.status === 2) && game.currentRoundIndex >= 0) {
+          const r = game.rounds[game.currentRoundIndex];
+          if (r) {
+            setCurrentRound({
+              roundNumber: r.roundNumber,
+              letter: r.letter,
+              categories: r.categories,
+              startedAt: r.startedAt,
+              endsAt: r.endedAt,
+            });
+            setPhase('answering');
+          }
+        } else if (game.status === 7) {
+          // status 7 = Finished — missed the finalize event
+          setPhase('gameOver');
+        }
+      } catch {
+        // swallow — poll errors are non-fatal; next tick will retry
+      }
+    }, PHASE_POLL_INTERVAL_MS);
+    return () => clearInterval(id);
+  }, [gameId]); // eslint-disable-line react-hooks/exhaustive-deps
+
   // Auto-advance timer — only the host calls the advance endpoint when it fires
   useEffect(() => {
     if (showLeaderboard) return;
