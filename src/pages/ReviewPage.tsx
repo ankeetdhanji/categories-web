@@ -87,10 +87,15 @@ export default function ReviewPage() {
     return () => clearInterval(id);
   }, [gameId]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Auto-advance timer — only the host calls the advance endpoint when it fires
+  // Auto-advance timer — only the host calls the advance endpoint when it fires.
+  // Use a longer window (45s) when the current category has unresolved disputes.
+  const DISPUTE_REVIEW_SECONDS = 45;
   useEffect(() => {
     if (showLeaderboard) return;
-    setSecondsLeft(CATEGORY_REVIEW_SECONDS);
+    const currentCat = results?.categories[categoryIndex];
+    const hasDisputes = currentCat?.entries.some((e) => e.isDisputed) ?? false;
+    const duration = hasDisputes ? DISPUTE_REVIEW_SECONDS : CATEGORY_REVIEW_SECONDS;
+    setSecondsLeft(duration);
     const id = setInterval(() => {
       setSecondsLeft((s) => {
         if (s <= 1) {
@@ -102,7 +107,7 @@ export default function ReviewPage() {
       });
     }, 1000);
     return () => clearInterval(id);
-  }, [categoryIndex, showLeaderboard, isHost]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [categoryIndex, showLeaderboard, isHost, results]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Next round auto-started by server — transition back to answering
   useSignalREvent(HubEvents.RoundStarted, (payload) => {
@@ -160,6 +165,13 @@ export default function ReviewPage() {
     setCountdownStartAt(startAt);
     setCountdownInfo(letter, roundNumber);
     setPhase('countdown');
+  });
+
+  // SignalR: host changed — reset the review timer so the new host can advance
+  useSignalREvent(HubEvents.HostChanged, () => {
+    advancingRef.current = false;
+    setAdvancing(false);
+    setSecondsLeft(CATEGORY_REVIEW_SECONDS);
   });
 
   async function handleAdvance() {

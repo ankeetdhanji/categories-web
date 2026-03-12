@@ -9,7 +9,7 @@ export function getConnection(): signalR.HubConnection {
   if (!connection) {
     connection = new signalR.HubConnectionBuilder()
       .withUrl(HUB_URL)
-      .withAutomaticReconnect()
+      .withAutomaticReconnect([0, 2000, 10000, 30000, 60000])
       .configureLogging(signalR.LogLevel.Information)
       .build();
   }

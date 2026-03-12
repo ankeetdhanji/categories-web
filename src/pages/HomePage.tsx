@@ -8,6 +8,7 @@ interface ActiveGame {
   joinCode: string;
   playerId: string;
   displayName: string;
+  createdAt?: number;
 }
 
 export default function HomePage() {
@@ -37,6 +38,13 @@ export default function HomePage() {
       setCheckingActiveGame(false);
       return;
     }
+    // Discard entries older than 48 hours without making an API call
+    const fortyEightHours = 48 * 60 * 60 * 1000;
+    if (parsed.createdAt && Date.now() - parsed.createdAt > fortyEightHours) {
+      localStorage.removeItem('active_game');
+      setCheckingActiveGame(false);
+      return;
+    }
     api.getGame(parsed.gameId)
       .then((game) => {
         const stillActive = game.status < 7;
@@ -48,7 +56,8 @@ export default function HomePage() {
         }
       })
       .catch(() => {
-        localStorage.removeItem('active_game');
+        // Network error — keep the entry so the rejoin card stays visible
+        setActiveGame(parsed);
       })
       .finally(() => {
         setCheckingActiveGame(false);
@@ -76,7 +85,7 @@ export default function HomePage() {
       const playerId = crypto.randomUUID();
       const res = await api.joinGame(code, playerId, name);
       localStorage.setItem('displayName', name);
-      localStorage.setItem('active_game', JSON.stringify({ gameId: res.gameId, joinCode: code, playerId, displayName: name }));
+      localStorage.setItem('active_game', JSON.stringify({ gameId: res.gameId, joinCode: code, playerId, displayName: name, createdAt: Date.now() }));
       setPlayer(playerId, name);
       setGameId(res.gameId);
       setJoinCode(code);
@@ -100,7 +109,7 @@ export default function HomePage() {
       const playerId = crypto.randomUUID();
       const res = await api.createGame(playerId, name);
       localStorage.setItem('displayName', name);
-      localStorage.setItem('active_game', JSON.stringify({ gameId: res.gameId, joinCode: res.joinCode, playerId, displayName: name }));
+      localStorage.setItem('active_game', JSON.stringify({ gameId: res.gameId, joinCode: res.joinCode, playerId, displayName: name, createdAt: Date.now() }));
       setPlayer(playerId, name);
       setGameId(res.gameId);
       setJoinCode(res.joinCode);

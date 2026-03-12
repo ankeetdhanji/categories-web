@@ -1,16 +1,28 @@
 const BASE_URL = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:5000';
 
 async function request<T>(path: string, options?: RequestInit): Promise<T> {
-  const res = await fetch(`${BASE_URL}${path}`, {
-    headers: { 'Content-Type': 'application/json' },
-    ...options,
-  });
-  if (!res.ok) {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 10_000);
+  try {
+    const res = await fetch(`${BASE_URL}${path}`, {
+      headers: { 'Content-Type': 'application/json' },
+      ...options,
+      signal: controller.signal,
+    });
+    if (!res.ok) {
+      const text = await res.text();
+      throw new Error(`API error ${res.status}: ${text}`);
+    }
     const text = await res.text();
-    throw new Error(`API error ${res.status}: ${text}`);
+    return (text ? JSON.parse(text) : undefined) as T;
+  } catch (err) {
+    if (err instanceof Error && err.name === 'AbortError') {
+      throw new Error('Request timed out');
+    }
+    throw err;
+  } finally {
+    clearTimeout(timeout);
   }
-  const text = await res.text();
-  return (text ? JSON.parse(text) : undefined) as T;
 }
 
 export interface GameSettings {
