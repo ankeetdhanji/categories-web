@@ -7,8 +7,9 @@ import ReviewPage from './pages/ReviewPage';
 import GameOverPage from './pages/GameOverPage';
 import { useConnectionStatus } from './hooks/useConnectionStatus';
 import { useSignalREvent } from './hooks/useSignalR';
-import { HubEvents } from './services/signalr';
+import { HubEvents, joinGameGroup } from './services/signalr';
 import { api } from './services/api';
+import { ErrorBoundary } from './components/ErrorBoundary';
 
 // GameStatus integer → frontend phase
 export const STATUS_TO_PHASE: Record<number, GamePhase> = {
@@ -54,7 +55,7 @@ function GlobalSignalRHandlers() {
 }
 
 function ReconnectBanner() {
-  const { gameId, phase, setPhase, setPlayers, setFullSettings, setCurrentRound } = useGame();
+  const { gameId, playerId, phase, setPhase, setPlayers, setFullSettings, setCurrentRound } = useGame();
   const { isReconnecting } = useConnectionStatus();
   const wasReconnecting = useRef(false);
 
@@ -93,6 +94,11 @@ function ReconnectBanner() {
           });
         }
       }
+
+      // Re-join SignalR group with the new connectionId after automatic reconnect
+      if (playerId) {
+        joinGameGroup(gameId, playerId).catch(console.error);
+      }
     }).catch(console.error);
   }, [isReconnecting]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -109,12 +115,44 @@ function ReconnectBanner() {
   );
 }
 
+function DisconnectedBanner() {
+  const { isDisconnected } = useConnectionStatus();
+
+  if (!isDisconnected) return null;
+
+  return (
+    <div
+      className="fixed inset-0 z-[200] flex flex-col items-center justify-center gap-6 px-6"
+      style={{ background: 'rgba(11,15,20,0.97)' }}
+    >
+      <div className="flex flex-col items-center gap-2 text-center">
+        <span className="font-bold text-base" style={{ color: '#ef4444' }}>
+          Connection lost
+        </span>
+        <span className="text-sm max-w-sm" style={{ color: '#9ca3af' }}>
+          Your connection to the game server was lost.
+        </span>
+      </div>
+      <button
+        onClick={() => window.location.reload()}
+        className="px-6 py-2.5 rounded-xl font-bold text-sm"
+        style={{ background: '#3b82f6', color: '#0b0f14' }}
+      >
+        Tap to reload
+      </button>
+    </div>
+  );
+}
+
 export default function App() {
   return (
     <GameProvider>
       <GlobalSignalRHandlers />
       <ReconnectBanner />
-      <GameRouter />
+      <DisconnectedBanner />
+      <ErrorBoundary>
+        <GameRouter />
+      </ErrorBoundary>
     </GameProvider>
   );
 }

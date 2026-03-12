@@ -28,6 +28,34 @@ export default function RoundPage() {
   // and don't fire duplicate auto-submits due to stale closure capture.
   const submittedRef = useRef(false);
 
+  // Restore answer draft from localStorage on mount / round change
+  useEffect(() => {
+    if (!gameId || !currentRound?.roundNumber) return;
+    const key = `draft_${gameId}_${currentRound.roundNumber}`;
+    const stored = localStorage.getItem(key);
+    if (!stored) return;
+    try {
+      const { answers: savedAnswers, submitted: savedSubmitted } = JSON.parse(stored) as {
+        answers: Record<string, string>;
+        submitted: boolean;
+      };
+      if (savedAnswers) setAnswers(savedAnswers);
+      if (savedSubmitted) {
+        setSubmitted(true);
+        submittedRef.current = true;
+      }
+    } catch {
+      // corrupted — ignore
+    }
+  }, [gameId, currentRound?.roundNumber]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Persist answer draft to localStorage on every change
+  useEffect(() => {
+    if (!gameId || !currentRound?.roundNumber) return;
+    const key = `draft_${gameId}_${currentRound.roundNumber}`;
+    localStorage.setItem(key, JSON.stringify({ answers, submitted }));
+  }, [answers, submitted, gameId, currentRound?.roundNumber]);
+
   // RoundStarted — set round data and dismiss the countdown overlay
   useSignalREvent(HubEvents.RoundStarted, (payload) => {
     setCurrentRound(payload as RoundInfo);
@@ -67,6 +95,9 @@ export default function RoundPage() {
       // Backend accepts late submissions until scoring completes.
       api.submitAnswers(gameId ?? '', playerId ?? '', answers).catch(() => {});
       submittedRef.current = true;
+    }
+    if (gameId && currentRound?.roundNumber) {
+      localStorage.removeItem(`draft_${gameId}_${currentRound.roundNumber}`);
     }
     setPhase('results');
   });
@@ -120,6 +151,9 @@ export default function RoundPage() {
     setSubmitted(true);
     try {
       await api.submitAnswers(gameId, playerId, answers);
+      if (currentRound?.roundNumber) {
+        localStorage.removeItem(`draft_${gameId}_${currentRound.roundNumber}`);
+      }
     } catch {
       if (!auto) {
         submittedRef.current = false;
@@ -135,6 +169,9 @@ export default function RoundPage() {
     try {
       await api.submitAnswers(gameId, playerId, answers);
       await api.markDone(gameId, playerId);
+      if (currentRound?.roundNumber) {
+        localStorage.removeItem(`draft_${gameId}_${currentRound.roundNumber}`);
+      }
     } catch {
       submittedRef.current = false;
       setSubmitted(false);
