@@ -1,22 +1,24 @@
 @import "tailwindcss";
 
-/* Design system: dark-first, blue-accented "game night" aesthetic */
+/* Design system: purple gradient "game night" aesthetic */
 :root {
-  --color-bg: #0B0F14;
-  --color-surface: #111827;
-  --color-surface-input: #161f2b;
-  --color-border: #263244;
-  --color-primary: #3b82f6;
-  --color-primary-glow: rgba(59, 130, 246, 0.3);
-  --color-text: #e5e7eb;
-  --color-text-muted: #9ca3af;
-  --color-text-subtle: #6b7280;
+  --color-bg-from: #312C85;
+  --color-bg-mid:  #59168B;
+  --color-bg-to:   #372AAC;
+  --color-surface: rgba(255,255,255,0.15);
+  --color-surface-input: rgba(255,255,255,0.9);
+  --color-border: rgba(255,255,255,0.2);
+  --color-primary: #2B7FFF;
+  --color-text: #ffffff;
+  --color-text-muted: #E9D4FF;
+  --color-text-subtle: rgba(255,255,255,0.6);
 }
 
 body {
   margin: 0;
   min-height: 100vh;
-  background-color: var(--color-bg);
+  background: linear-gradient(145.1deg, #312C85 0%, #59168B 50%, #372AAC 100%);
+  background-attachment: fixed;
   color: var(--color-text);
   font-family: 'Inter', system-ui, -apple-system, sans-serif;
   -webkit-font-smoothing: antialiased;

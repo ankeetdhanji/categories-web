@@ -174,99 +174,92 @@ export default function HomePage() {
 
   return (
     <div className="relative flex flex-col items-center justify-center min-h-screen overflow-hidden px-4 py-12">
-      {/* Background glow blobs */}
+      {/* Colour blobs */}
       <div
-        className="pointer-events-none absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 rounded-full opacity-20 blur-3xl"
-        style={{ width: 600, height: 600, background: 'radial-gradient(circle, #3b82f6 0%, transparent 70%)' }}
+        className="pointer-events-none absolute rounded-full opacity-10"
+        style={{ width: 128, height: 128, background: '#AD46FF', filter: 'blur(64px)', top: '8%', right: '10%' }}
       />
       <div
-        className="pointer-events-none absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 rounded-full opacity-10 blur-3xl"
-        style={{ width: 400, height: 400, background: 'radial-gradient(circle, #ec4899 0%, transparent 70%)' }}
+        className="pointer-events-none absolute rounded-full opacity-10"
+        style={{ width: 160, height: 160, background: '#F6339A', filter: 'blur(64px)', bottom: '12%', left: '8%' }}
+      />
+      <div
+        className="pointer-events-none absolute rounded-full opacity-10"
+        style={{ width: 96, height: 96, background: '#00B8DB', filter: 'blur(40px)', top: '45%', left: '5%' }}
       />
 
-      <div className="relative z-10 flex flex-col items-center gap-10 w-full max-w-[420px]">
-        {/* Logo */}
-        <div className="flex flex-col items-center gap-3">
-          <div className="flex items-center gap-3">
-            {/* Logo mark */}
-            <div className="relative">
-              <div
-                className="relative flex items-center justify-center rounded-[14px] overflow-hidden"
-                style={{
-                  width: 48, height: 48,
-                  background: '#111827',
-                  border: '1px solid #263244',
-                  boxShadow: '0px 10px 15px -3px rgba(0,0,0,0.1)',
-                }}
-              >
-                <div className="absolute inset-0 top-0 left-0 right-0 h-1/2" style={{ background: 'rgba(255,255,255,0.05)' }} />
-                <span className="relative font-extrabold text-white text-2xl tracking-tighter select-none">C</span>
-              </div>
-              {/* Glow bar under logo */}
-              <div
-                className="absolute -bottom-1 left-1/2 -translate-x-1/2 rounded-full opacity-70 blur-sm"
-                style={{ width: 40, height: 6, background: 'linear-gradient(to right, #3b82f6, #ec4899)' }}
-              />
-              {/* Decorative dots */}
-              <div className="absolute -top-0.5 -right-0.5 rounded-full opacity-60" style={{ width: 10, height: 10, background: '#ec4899' }} />
-              <div className="absolute -bottom-0.5 right-[-10px] rounded-full opacity-60" style={{ width: 7, height: 7, background: '#3b82f6' }} />
-            </div>
+      {/* Decorative letter tiles */}
+      <div
+        className="pointer-events-none absolute flex items-center justify-center rounded-2xl shadow-lg"
+        style={{ width: 52, height: 52, background: 'rgba(255,255,255,0.10)', top: '10%', right: '6%', transform: 'rotate(2.68deg)' }}
+      >
+        <span className="font-black text-white text-2xl select-none">C</span>
+      </div>
+      <div
+        className="pointer-events-none absolute flex items-center justify-center rounded-2xl shadow-lg"
+        style={{ width: 52, height: 52, background: 'rgba(255,255,255,0.10)', bottom: '18%', right: '5%', transform: 'rotate(-2.68deg)' }}
+      >
+        <span className="font-black text-white text-2xl select-none">A</span>
+      </div>
+      <div
+        className="pointer-events-none absolute flex items-center justify-center rounded-2xl shadow-lg"
+        style={{ width: 52, height: 52, background: 'rgba(255,255,255,0.10)', top: '50%', left: '4%', transform: 'rotate(1.5deg)' }}
+      >
+        <span className="font-black text-white text-2xl select-none">T</span>
+      </div>
 
-            {/* Wordmark */}
-            <div className="flex flex-col gap-1">
-              <span
-                className="font-bold text-2xl tracking-tight leading-none select-none"
-                style={{ color: '#e5e7eb', letterSpacing: '-0.6px' }}
-              >
-                Categories
-              </span>
-              <div
-                className="rounded-full h-[3px]"
-                style={{ background: 'linear-gradient(to right, #3b82f6, #ec4899)' }}
-              />
+      {/* Sparkle top-left */}
+      <div className="pointer-events-none absolute" style={{ top: '6%', left: '7%', opacity: 0.5 }}>
+        <SparkleIcon size={32} color="#FDE047" />
+      </div>
+
+      <div className="relative z-10 flex flex-col items-center gap-8 w-full max-w-[420px]">
+        {/* Title */}
+        <div className="flex flex-col items-center gap-2">
+          <div className="relative inline-block">
+            <h1 className="text-6xl font-black text-white select-none leading-none">Categories</h1>
+            <div className="absolute -top-3 -right-6" style={{ opacity: 0.9 }}>
+              <SparkleIcon size={28} color="#FDE047" />
             </div>
           </div>
-          <p className="text-base font-medium" style={{ color: '#9ca3af' }}>
-            A real-time categories game
+          <p className="text-xl font-medium" style={{ color: '#E9D4FF' }}>
+            Beat your friends to the best answers
           </p>
         </div>
 
-        {/* Active Game panel */}
+        {/* Active Game card */}
         {!checkingActiveGame && activeGame !== null && (
           <div
-            className="w-full rounded-2xl px-5 py-4 flex flex-col gap-1"
-            style={{
-              background: '#111827',
-              border: '1px solid #263244',
-            }}
+            className="w-full rounded-2xl px-5 py-4 flex flex-col gap-3"
+            style={{ background: 'linear-gradient(to right, #FDC700, #FF8904)' }}
           >
-            <p className="text-xs font-medium uppercase tracking-widest mb-2" style={{ color: '#9ca3af' }}>
-              Active Game
-            </p>
-            <div className="flex items-center justify-between gap-3">
-              <div className="flex flex-col gap-0.5">
-                <span className="font-mono font-bold text-lg" style={{ color: '#e5e7eb', letterSpacing: '0.1em' }}>
+            {/* Banner row */}
+            <div className="flex items-center gap-3">
+              <div className="flex items-center justify-center rounded-full" style={{ width: 36, height: 36, background: 'rgba(255,255,255,0.25)', flexShrink: 0 }}>
+                <BoltIcon />
+              </div>
+              <span className="font-bold text-white text-sm">Your game is still live!</span>
+              <div className="ml-auto rounded-full px-3 py-1" style={{ background: '#ffffff' }}>
+                <span className="font-mono font-bold text-sm tracking-widest uppercase" style={{ color: '#101828' }}>
                   {activeGame.joinCode}
                 </span>
-                <span className="text-xs" style={{ color: '#6b7280' }}>
-                  as {activeGame.displayName}
-                </span>
+              </div>
+            </div>
+            {/* Playing as + rejoin */}
+            <div className="flex items-center justify-between gap-3">
+              <div className="flex flex-col gap-0.5">
+                <span className="text-xs font-semibold" style={{ color: '#7E2A0C' }}>Playing as</span>
+                <span className="font-bold text-sm" style={{ color: '#7E2A0C' }}>{activeGame.displayName}</span>
               </div>
               <button
                 onClick={handleRejoin}
                 disabled={isRejoining}
-                className="flex items-center gap-1.5 rounded-[10px] px-4 font-bold text-sm transition-opacity disabled:opacity-60"
-                style={{
-                  height: 40,
-                  background: '#10b981',
-                  color: '#0b0f14',
-                  boxShadow: '0px 0px 12px 0px rgba(16,185,129,0.3)',
-                  flexShrink: 0,
-                }}
+                className="flex items-center gap-1.5 rounded-2xl px-4 font-bold text-sm text-white transition-opacity disabled:opacity-60"
+                style={{ height: 40, background: '#7E2A0C', flexShrink: 0 }}
               >
                 {isRejoining ? <Spinner /> : (
                   <>
-                    <span>Rejoin</span>
+                    <span>Rejoin Game</span>
                     <ArrowRightIcon />
                   </>
                 )}
@@ -275,18 +268,19 @@ export default function HomePage() {
           </div>
         )}
 
-        {/* Card */}
+        {/* Main form card (frosted glass) */}
         <div
-          className="w-full rounded-2xl px-6 py-6 flex flex-col gap-0"
+          className="w-full rounded-3xl px-6 py-6 flex flex-col gap-0"
           style={{
-            background: '#111827',
-            border: '1px solid #263244',
-            boxShadow: '0px 25px 50px 0px rgba(0,0,0,0.25)',
+            background: 'rgba(255,255,255,0.15)',
+            border: '1px solid rgba(255,255,255,0.2)',
+            boxShadow: '0px 25px 50px rgba(0,0,0,0.25)',
+            backdropFilter: 'blur(12px)',
           }}
         >
-          {/* Name section */}
-          <div className="flex flex-col gap-2 mb-6">
-            <label className="text-xs font-medium uppercase tracking-widest" style={{ color: '#9ca3af', paddingLeft: 4 }}>
+          {/* Name input */}
+          <div className="flex flex-col gap-2 mb-5">
+            <label className="text-sm font-bold text-white" style={{ paddingLeft: 4 }}>
               Your Name
             </label>
             <input
@@ -295,21 +289,20 @@ export default function HomePage() {
               onKeyDown={(e) => e.key === 'Enter' && handleJoin()}
               placeholder="e.g. Alex"
               maxLength={20}
-              className="w-full rounded-[10px] px-4 text-lg font-mono tracking-wide outline-none focus:ring-2"
+              className="w-full rounded-2xl px-4 outline-none focus:ring-2 focus:ring-white/40 text-lg font-semibold"
               style={{
-                height: 48,
-                background: '#161f2b',
-                border: '1px solid #263244',
-                color: '#e5e7eb',
-                letterSpacing: '0.05em',
+                height: 64,
+                background: 'rgba(255,255,255,0.9)',
+                border: 'none',
+                color: '#101828',
               }}
             />
-            {nameError && <p className="text-xs pl-1" style={{ color: '#f87171' }}>{nameError}</p>}
+            {nameError && <p className="text-xs pl-1" style={{ color: '#fca5a5' }}>{nameError}</p>}
           </div>
 
-          {/* Join section */}
+          {/* Game code input */}
           <div className="flex flex-col gap-2">
-            <label className="text-xs font-medium uppercase tracking-widest" style={{ color: '#9ca3af', paddingLeft: 4 }}>
+            <label className="text-sm font-bold text-white" style={{ paddingLeft: 4 }}>
               Game Code
             </label>
             <input
@@ -318,36 +311,33 @@ export default function HomePage() {
               onKeyDown={(e) => e.key === 'Enter' && handleJoin()}
               placeholder="e.g. K7P4"
               maxLength={8}
-              className="w-full rounded-[10px] px-4 text-lg font-mono tracking-wide outline-none focus:ring-2"
+              className="w-full rounded-2xl px-4 outline-none focus:ring-2 focus:ring-[#DAB2FF] text-2xl font-black uppercase text-center"
               style={{
-                height: 48,
-                background: '#161f2b',
-                border: '1px solid #263244',
-                color: '#e5e7eb',
-                letterSpacing: '0.05em',
+                height: 80,
+                background: 'linear-gradient(168deg, #F3E8FF 0%, #FCE7F3 100%)',
+                border: '4px solid #DAB2FF',
+                color: '#59168B',
+                letterSpacing: '7px',
               }}
             />
             {joinError ? (
-              <p className="text-xs pl-1" style={{ color: '#f87171' }}>{joinError}</p>
+              <p className="text-xs pl-1" style={{ color: '#fca5a5' }}>{joinError}</p>
             ) : (
-              <p className="text-xs pl-1" style={{ color: '#9ca3af' }}>Enter a code from your host</p>
+              <p className="text-xs pl-1" style={{ color: 'rgba(255,255,255,0.6)' }}>Enter a code from your host</p>
             )}
 
+            {/* Join Lobby button */}
             <button
               onClick={handleJoin}
               disabled={isJoining}
-              className="w-full rounded-[10px] flex items-center justify-center gap-2 font-bold text-base transition-opacity disabled:opacity-60"
+              className="w-full rounded-2xl flex items-center justify-center gap-2 font-black text-xl text-white transition-opacity disabled:opacity-60"
               style={{
-                height: 48,
-                background: '#3b82f6',
-                color: '#0b0f14',
-                boxShadow: '0px 0px 15px 0px rgba(59,130,246,0.3)',
+                height: 68,
+                background: 'linear-gradient(to right, #00D3F3, #2B7FFF)',
                 marginTop: 8,
               }}
             >
-              {isJoining ? (
-                <Spinner />
-              ) : (
+              {isJoining ? <Spinner /> : (
                 <>
                   <span>Join Lobby</span>
                   <ArrowRightIcon />
@@ -356,27 +346,22 @@ export default function HomePage() {
             </button>
           </div>
 
-          {/* Divider */}
-          <div className="relative flex items-center my-6">
-            <div className="flex-1 border-t" style={{ borderColor: '#263244' }} />
-            <span
-              className="absolute left-1/2 -translate-x-1/2 px-3 text-xs font-medium"
-              style={{ background: '#111827', color: '#6b7280' }}
-            >
-              OR
-            </span>
+          {/* OR divider */}
+          <div className="relative flex items-center gap-3 my-5">
+            <div className="flex-1" style={{ height: 2, background: 'rgba(255,255,255,0.2)' }} />
+            <span className="text-sm font-semibold" style={{ color: 'rgba(255,255,255,0.6)' }}>OR</span>
+            <div className="flex-1" style={{ height: 2, background: 'rgba(255,255,255,0.2)' }} />
           </div>
 
-          {/* Create section */}
-          <div className="flex flex-col gap-4">
+          {/* Create Game button */}
+          <div className="flex flex-col gap-3">
             <button
               onClick={handleCreate}
               disabled={isCreating}
-              className="w-full rounded-[10px] flex items-center justify-center gap-2 font-medium text-base transition-colors disabled:opacity-60 hover:bg-white/5"
+              className="w-full rounded-2xl flex items-center justify-center gap-2 font-black text-xl text-white transition-opacity disabled:opacity-60"
               style={{
-                height: 48,
-                border: '1px solid #263244',
-                color: '#e5e7eb',
+                height: 68,
+                background: 'linear-gradient(to right, #F6339A, #9810FA)',
               }}
             >
               {isCreating ? <Spinner /> : (
@@ -388,20 +373,25 @@ export default function HomePage() {
             </button>
 
             {createError && (
-              <p className="text-center text-xs" style={{ color: '#f87171' }}>{createError}</p>
+              <p className="text-center text-xs" style={{ color: '#fca5a5' }}>{createError}</p>
             )}
-            <p className="text-center text-xs" style={{ color: '#6b7280' }}>
-              Play as guest or sign in later
-            </p>
           </div>
         </div>
 
         {/* Footer badges */}
-        <div className="flex items-center gap-2 text-xs font-medium" style={{ color: '#6b7280' }}>
-          <UsersIcon />
-          <span>Private rooms only</span>
-          <div className="rounded-full" style={{ width: 4, height: 4, background: '#6b7280' }} />
-          <span>No matchmaking</span>
+        <div className="flex items-center gap-4">
+          <div className="flex items-center gap-2">
+            <div className="flex items-center justify-center rounded-full" style={{ width: 28, height: 28, background: 'rgba(255,255,255,0.10)' }}>
+              <LockIcon />
+            </div>
+            <span className="text-sm font-medium" style={{ color: '#E9D4FF' }}>Private rooms</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <div className="flex items-center justify-center rounded-full" style={{ width: 28, height: 28, background: 'rgba(255,255,255,0.10)' }}>
+              <UsersIcon />
+            </div>
+            <span className="text-sm font-medium" style={{ color: '#E9D4FF' }}>Play with friends</span>
+          </div>
         </div>
 
       </div>
@@ -428,8 +418,25 @@ function ArrowRightIcon() {
 
 function PlusIcon() {
   return (
-    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <svg width="18" height="18" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
       <path d="M8 3v10M3 8h10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+function BoltIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <path d="M9 2L3 9h5l-1 5 6-7H8l1-5z" fill="white" />
+    </svg>
+  );
+}
+
+function LockIcon() {
+  return (
+    <svg width="12" height="12" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <rect x="3" y="7" width="10" height="8" rx="1.5" stroke="white" strokeWidth="1.5" />
+      <path d="M5 7V5a3 3 0 016 0v2" stroke="white" strokeWidth="1.5" strokeLinecap="round" />
     </svg>
   );
 }
@@ -437,7 +444,29 @@ function PlusIcon() {
 function UsersIcon() {
   return (
     <svg width="12" height="12" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-      <path d="M11 14v-1.5A2.5 2.5 0 008.5 10h-5A2.5 2.5 0 001 12.5V14M15 14v-1.5a2.5 2.5 0 00-2-2.45M11 2.13a2.5 2.5 0 010 4.74M6 7a2.5 2.5 0 100-5 2.5 2.5 0 000 5z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M11 14v-1.5A2.5 2.5 0 008.5 10h-5A2.5 2.5 0 001 12.5V14M15 14v-1.5a2.5 2.5 0 00-2-2.45M11 2.13a2.5 2.5 0 010 4.74M6 7a2.5 2.5 0 100-5 2.5 2.5 0 000 5z" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+function SparkleIcon({ size = 24, color = '#ffffff' }: { size?: number; color?: string }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <path
+        d="M12 2l2.4 7.2H22l-6.2 4.5 2.4 7.3L12 17l-6.2 4-2.4-7.3L3.2 9.2 11.6 9.2z M12 2l1.5 4.5M12 2l-1.5 4.5"
+        stroke={color}
+        strokeWidth="1.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        fill="none"
+      />
+      <path
+        d="M12 3C12 3 13.5 7 12 12C10.5 7 12 3 12 3Z M12 3C12 3 16 5 19 9C15 7.5 12 3 12 3Z M12 3C12 3 8 5 5 9C9 7.5 12 3 12 3Z"
+        fill={color}
+        opacity="0.4"
+      />
+      <circle cx="12" cy="12" r="2" fill={color} />
+      <path d="M12 5v2M12 17v2M5 12H7M17 12h2M7.05 7.05l1.41 1.41M15.54 15.54l1.41 1.41M7.05 16.95l1.41-1.41M15.54 8.46l1.41-1.41" stroke={color} strokeWidth="1.5" strokeLinecap="round" />
     </svg>
   );
 }
