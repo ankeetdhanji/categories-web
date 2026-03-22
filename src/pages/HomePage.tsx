@@ -177,39 +177,39 @@ export default function HomePage() {
       {/* Colour blobs */}
       <div
         className="pointer-events-none absolute rounded-full opacity-10"
-        style={{ width: 128, height: 128, background: '#AD46FF', filter: 'blur(64px)', top: '8%', right: '10%' }}
+        style={{ width: 128, height: 128, background: '#AD46FF', filter: 'blur(64px)', top: '8%', right: '10%', willChange: 'transform', animation: 'float-blob 10s ease-in-out infinite 0s' }}
       />
       <div
         className="pointer-events-none absolute rounded-full opacity-10"
-        style={{ width: 160, height: 160, background: '#F6339A', filter: 'blur(64px)', bottom: '12%', left: '8%' }}
+        style={{ width: 160, height: 160, background: '#F6339A', filter: 'blur(64px)', bottom: '12%', left: '8%', willChange: 'transform', animation: 'float-blob 12s ease-in-out infinite 3s' }}
       />
       <div
         className="pointer-events-none absolute rounded-full opacity-10"
-        style={{ width: 96, height: 96, background: '#00B8DB', filter: 'blur(40px)', top: '45%', left: '5%' }}
+        style={{ width: 96, height: 96, background: '#00B8DB', filter: 'blur(40px)', top: '45%', left: '5%', willChange: 'transform', animation: 'float-blob 9s ease-in-out infinite 1.5s' }}
       />
 
       {/* Decorative letter tiles */}
       <div
         className="pointer-events-none absolute flex items-center justify-center rounded-2xl shadow-lg"
-        style={{ width: 52, height: 52, background: 'rgba(255,255,255,0.10)', top: '10%', right: '6%', transform: 'rotate(2.68deg)' }}
+        style={{ width: 52, height: 52, background: 'rgba(255,255,255,0.10)', top: '10%', right: '6%', willChange: 'transform', animation: 'float-a 6s ease-in-out infinite 0s' }}
       >
         <span className="font-black text-white text-2xl select-none">C</span>
       </div>
       <div
         className="pointer-events-none absolute flex items-center justify-center rounded-2xl shadow-lg"
-        style={{ width: 52, height: 52, background: 'rgba(255,255,255,0.10)', bottom: '18%', right: '5%', transform: 'rotate(-2.68deg)' }}
+        style={{ width: 52, height: 52, background: 'rgba(255,255,255,0.10)', bottom: '18%', right: '5%', willChange: 'transform', animation: 'float-b 7s ease-in-out infinite 1.2s' }}
       >
         <span className="font-black text-white text-2xl select-none">A</span>
       </div>
       <div
         className="pointer-events-none absolute flex items-center justify-center rounded-2xl shadow-lg"
-        style={{ width: 52, height: 52, background: 'rgba(255,255,255,0.10)', top: '50%', left: '4%', transform: 'rotate(1.5deg)' }}
+        style={{ width: 52, height: 52, background: 'rgba(255,255,255,0.10)', top: '50%', left: '4%', willChange: 'transform', animation: 'float-c 8s ease-in-out infinite 0.5s' }}
       >
         <span className="font-black text-white text-2xl select-none">T</span>
       </div>
 
       {/* Sparkle top-left */}
-      <div className="pointer-events-none absolute" style={{ top: '6%', left: '7%', opacity: 0.5 }}>
+      <div className="pointer-events-none absolute" style={{ top: '6%', left: '7%', willChange: 'transform', animation: 'float-sparkle 5s ease-in-out infinite 0.8s' }}>
         <SparkleIcon size={32} color="#FDE047" />
       </div>
 
@@ -218,7 +218,7 @@ export default function HomePage() {
         <div className="flex flex-col items-center gap-2">
           <div className="relative inline-block">
             <h1 className="text-6xl font-black text-white select-none leading-none">Categories</h1>
-            <div className="absolute -top-3 -right-6" style={{ opacity: 0.9 }}>
+            <div className="absolute -top-3 -right-6" style={{ opacity: 0.9, willChange: 'transform', animation: 'float-sparkle 5s ease-in-out infinite 2s' }}>
               <SparkleIcon size={28} color="#FDE047" />
             </div>
           </div>
