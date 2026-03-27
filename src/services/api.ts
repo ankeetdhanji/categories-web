@@ -116,6 +116,10 @@ export const api = {
         categories: string[];
         startedAt: string | null;
         endedAt: string | null;
+        status?: number;
+        donePlayerIds?: string[];
+        answers?: Record<string, { isSubmitted: boolean }>;
+        currentCategoryIndex?: number;
       }[];
     }>(`/api/games/${gameId}`),
 

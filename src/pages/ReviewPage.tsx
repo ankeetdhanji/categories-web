@@ -3,6 +3,7 @@ import { useGame, type GamePhase, type RoundInfo } from '../context/GameContext'
 import { useSignalREvent } from '../hooks/useSignalR';
 import { api, type RoundReviewResult, type AnswerEntry, type LeaderboardEntry, type FinalLeaderboardEntry } from '../services/api';
 import { HubEvents, sendReaction } from '../services/signalr';
+import { useConnectionStatus } from '../hooks/useConnectionStatus';
 
 const CATEGORY_REVIEW_SECONDS = 30;
 
@@ -43,6 +44,8 @@ export default function ReviewPage() {
   const [showLeaderboard, setShowLeaderboard] = useState(false);
   const [advancing, setAdvancing] = useState(false);
   const advancingRef = useRef(false);
+  const { isReconnecting } = useConnectionStatus();
+  const reconnectingRef = useRef(false);
 
   // Fetch round results on mount
   useEffect(() => {
@@ -55,6 +58,20 @@ export default function ReviewPage() {
         setLoadError(err instanceof Error ? err.message : String(err));
       });
   }, [gameId, roundToFetch]);
+
+  // Re-fetch review data on reconnect to restore category index and dispute state
+  useEffect(() => {
+    const justReconnected = !isReconnecting && reconnectingRef.current;
+    reconnectingRef.current = isReconnecting;
+    if (!justReconnected || !gameId || !roundToFetch) return;
+    setLoadError(null);
+    api.getRoundResults(gameId, roundToFetch)
+      .then(setResults)
+      .catch((err: unknown) => {
+        console.error('getRoundResults failed on reconnect:', err);
+        setLoadError(err instanceof Error ? err.message : String(err));
+      });
+  }, [isReconnecting]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Fallback polling — recover from missed SignalR phase-transition events
   const PHASE_POLL_INTERVAL_MS = 5_000;
