@@ -25,6 +25,26 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
   }
 }
 
+async function withRetry<T>(
+  fn: () => Promise<T>,
+  maxAttempts = 3,
+  baseDelayMs = 500,
+): Promise<T> {
+  let lastErr: unknown;
+  for (let attempt = 0; attempt < maxAttempts; attempt++) {
+    try {
+      return await fn();
+    } catch (err) {
+      const isRetryable =
+        !(err instanceof Error && err.message.startsWith('API error 4'));
+      if (!isRetryable || attempt === maxAttempts - 1) throw err;
+      lastErr = err;
+      await new Promise((r) => setTimeout(r, baseDelayMs * 2 ** attempt));
+    }
+  }
+  throw lastErr;
+}
+
 export interface GameSettings {
   isTimedMode: boolean;
   roundDurationSeconds: number;
@@ -120,16 +140,16 @@ export const api = {
     }>(`/api/games/${gameId}`),
 
   submitAnswers: (gameId: string, playerId: string, answers: Record<string, string>) =>
-    request<void>(`/api/games/${gameId}/rounds/current/answers`, {
+    withRetry(() => request<void>(`/api/games/${gameId}/rounds/current/answers`, {
       method: 'POST',
       body: JSON.stringify({ playerId, answers }),
-    }),
+    })),
 
   markDone: (gameId: string, playerId: string) =>
-    request<void>(`/api/games/${gameId}/rounds/current/done`, {
+    withRetry(() => request<void>(`/api/games/${gameId}/rounds/current/done`, {
       method: 'POST',
       body: JSON.stringify({ playerId }),
-    }),
+    })),
 
   forceEndRound: (gameId: string, playerId: string) =>
     request<void>(`/api/games/${gameId}/rounds/current/end`, {
@@ -141,40 +161,40 @@ export const api = {
     request<RoundReviewResult>(`/api/games/${gameId}/rounds/${roundNumber}/results`),
 
   castDisputeVote: (gameId: string, roundNumber: number, disputeId: string, playerId: string, isValid: boolean) =>
-    request<{ voteCount: number; totalVoters: number; resolved: boolean; isValid: boolean }>(
+    withRetry(() => request<{ voteCount: number; totalVoters: number; resolved: boolean; isValid: boolean }>(
       `/api/games/${gameId}/rounds/${roundNumber}/disputes/${encodeURIComponent(disputeId)}/vote`,
       { method: 'POST', body: JSON.stringify({ playerId, isValid }) },
-    ),
+    )),
 
   likeAnswer: (gameId: string, roundNumber: number, playerId: string, category: string, normalizedAnswer: string) =>
-    request<void>(`/api/games/${gameId}/rounds/${roundNumber}/likes`, {
+    withRetry(() => request<void>(`/api/games/${gameId}/rounds/${roundNumber}/likes`, {
       method: 'POST',
       body: JSON.stringify({ playerId, category, normalizedAnswer }),
-    }),
+    })),
 
   advanceCategory: (gameId: string, playerId: string, currentCategoryIndex: number) =>
-    request<{ categoryIndex: number; isLastCategory: boolean }>(
+    withRetry(() => request<{ categoryIndex: number; isLastCategory: boolean }>(
       `/api/games/${gameId}/rounds/current/review/advance`,
       { method: 'POST', body: JSON.stringify({ playerId, currentCategoryIndex }) },
-    ),
+    )),
 
   updateSettings: (gameId: string, playerId: string, settings: GameSettings) =>
-    request<void>(`/api/games/${gameId}/settings`, {
+    withRetry(() => request<void>(`/api/games/${gameId}/settings`, {
       method: 'PUT',
       body: JSON.stringify({ playerId, settings }),
-    }),
+    })),
 
   finalizeGame: (gameId: string, playerId: string) =>
-    request<{ winnerPlayerIds: string[]; bonusPerWinner: number; leaderboard: FinalLeaderboardEntry[] }>(
+    withRetry(() => request<{ winnerPlayerIds: string[]; bonusPerWinner: number; leaderboard: FinalLeaderboardEntry[] }>(
       `/api/games/${gameId}/finalize`,
       { method: 'POST', body: JSON.stringify({ playerId }) },
-    ),
+    )),
 
   startNextRound: (gameId: string, playerId: string) =>
-    request<void>(`/api/games/${gameId}/rounds/next`, {
+    withRetry(() => request<void>(`/api/games/${gameId}/rounds/next`, {
       method: 'POST',
       body: JSON.stringify({ playerId }),
-    }),
+    })),
 
   getDefaultCategories: () =>
     request<{ categories: string[] }>('/api/categories/defaults'),
