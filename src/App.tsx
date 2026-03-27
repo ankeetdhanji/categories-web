@@ -55,7 +55,7 @@ function GlobalSignalRHandlers() {
 }
 
 function ReconnectBanner() {
-  const { gameId, playerId, phase, setPhase, setPlayers, setFullSettings, setCurrentRound } = useGame();
+  const { gameId, playerId, phase, setPhase, setPlayers, setFullSettings, setCurrentRound, clearSubmittedPlayers, addSubmittedPlayer } = useGame();
   const { isReconnecting } = useConnectionStatus();
   const wasReconnecting = useRef(false);
 
@@ -92,6 +92,14 @@ function ReconnectBanner() {
             startedAt: r.startedAt,
             endsAt: r.endedAt,
           });
+          // Hydrate submitted players for mid-round recovery
+          const submitted = Object.entries(r.answers ?? {})
+            .filter(([, a]) => a.isSubmitted)
+            .map(([id]) => id);
+          const done = r.donePlayerIds ?? [];
+          const allSubmitted = [...new Set([...submitted, ...done])];
+          clearSubmittedPlayers();
+          allSubmitted.forEach(addSubmittedPlayer);
         }
       }
 
