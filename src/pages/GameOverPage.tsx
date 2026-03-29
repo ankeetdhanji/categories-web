@@ -3,11 +3,6 @@ import { motion, AnimatePresence } from 'motion/react';
 import { Trophy, Zap, Star, Crown } from 'lucide-react';
 import { useGame } from '../context/GameContext';
 
-const AVATAR_COLORS = [
-  '#3b82f6', '#ec4899', '#10b981', '#f59e0b', '#8b5cf6',
-  '#ef4444', '#06b6d4', '#84cc16', '#f97316', '#6366f1',
-];
-
 const AVATAR_GRADIENTS = [
   'linear-gradient(135deg, #51a2ff 0%, #00d3f3 100%)',
   'linear-gradient(135deg, #fb64b6 0%, #ff2056 100%)',
@@ -16,12 +11,6 @@ const AVATAR_GRADIENTS = [
   'linear-gradient(135deg, #a855f7 0%, #6366f1 100%)',
   'linear-gradient(135deg, #05df72 0%, #00bc7d 100%)',
 ];
-
-function avatarColor(playerId: string): string {
-  let hash = 0;
-  for (let i = 0; i < playerId.length; i++) hash = (hash * 31 + playerId.charCodeAt(i)) | 0;
-  return AVATAR_COLORS[Math.abs(hash) % AVATAR_COLORS.length];
-}
 
 function avatarGradient(playerId: string): string {
   let hash = 0;

@@ -42,7 +42,6 @@ export default function LobbyPage() {
   });
   const [editingCategories, setEditingCategories] = useState(false);
   const [categoryInput, setCategoryInput] = useState('');
-  const [saveConfirmed, setSaveConfirmed] = useState(false);
   const [copied, setCopied] = useState(false);
   const [starting, setStarting] = useState(false);
   const [startError, setStartError] = useState('');
@@ -154,10 +153,6 @@ export default function LobbyPage() {
     setTimeout(() => setFloaters((f) => f.filter((r) => r.id !== id)), 2000);
   }
 
-  function categoriesDiffer(a: string[], b: string[]) {
-    if (a.length !== b.length) return true;
-    return [...a].sort().join('|') !== [...b].sort().join('|');
-  }
 
   const applySettingsRef = useRef<((s: GameSettings) => void) | null>(null);
 
@@ -209,30 +204,6 @@ export default function LobbyPage() {
     setShowReactions(false);
   }
 
-  async function handleSaveMyDefaults() {
-    if (!playerId || !draft) return;
-    await api.saveMyCategories(playerId, draft.categories);
-    setSaveConfirmed(true);
-    setTimeout(() => setSaveConfirmed(false), 2000);
-  }
-
-  function handleAddCategory() {
-    const trimmed = categoryInput.trim();
-    if (!trimmed || !draft) return;
-    if (draft.categories.some((c) => c.toLowerCase() === trimmed.toLowerCase())) return;
-    const updated: GameSettings = { ...draft, categories: [...draft.categories, trimmed] };
-    setDraft(updated);
-    setCategoryInput('');
-    categoryInputRef.current?.focus();
-    applySettings(updated);
-  }
-
-  function handleRemoveCategory(cat: string) {
-    if (!draft) return;
-    const updated = { ...draft, categories: draft.categories.filter((c) => c !== cat) };
-    setDraft(updated);
-    applySettings(updated);
-  }
 
   function handleModalAddCategory() {
     const trimmed = categoryInput.trim();
@@ -1057,31 +1028,6 @@ function GameModeIcon() {
   );
 }
 
-function ClockIcon() {
-  return (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-      <circle cx="12" cy="12" r="10" />
-      <polyline points="12 6 12 12 16 14" />
-    </svg>
-  );
-}
-
-function InfinityIcon() {
-  return (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M12 12c-2-2.5-4-4-6-4a4 4 0 000 8c2 0 4-1.5 6-4z" />
-      <path d="M12 12c2 2.5 4 4 6 4a4 4 0 000-8c-2 0-4 1.5-6 4z" />
-    </svg>
-  );
-}
-
-function ChevronDownIcon() {
-  return (
-    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.5)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <polyline points="6 9 12 15 18 9" />
-    </svg>
-  );
-}
 
 function SettingsIconPink() {
   return (

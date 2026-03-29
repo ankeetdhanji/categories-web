@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { useGame, type RoundInfo } from '../context/GameContext';
 import { useSignalREvent } from '../hooks/useSignalR';
 import { api } from '../services/api';
-import { sendReaction, notifyAnswerPresence, HubEvents } from '../services/signalr';
+import { notifyAnswerPresence, HubEvents } from '../services/signalr';
 
 const AVATAR_GRADIENTS = [
   'linear-gradient(135deg, #51a2ff 0%, #00d3f3 100%)',
@@ -215,11 +215,6 @@ export default function RoundPage() {
     }
   }
 
-  function handleReaction(emoji: string) {
-    if (gameId) sendReaction(gameId, emoji).catch(() => {});
-  }
-
-  const timerWarning = secondsLeft !== null && secondsLeft <= 10;
   const timerClass = secondsLeft !== null && secondsLeft <= 5
     ? 'bg-red-950/80 border-2 border-red-500'
     : secondsLeft !== null && secondsLeft <= 15
