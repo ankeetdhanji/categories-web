@@ -57,6 +57,16 @@
   80%       { transform: translateX(2px); }
 }
 
+@keyframes bounceDot {
+  0%, 80%, 100% { transform: translateY(0); opacity: 0.4; }
+  40%           { transform: translateY(-6px); opacity: 1; }
+}
+
+@keyframes disputePulse {
+  0%, 100% { background-color: transparent; }
+  50%      { background-color: rgba(249,115,22,0.08); }
+}
+
 body {
   margin: 0;
   min-height: 100vh;

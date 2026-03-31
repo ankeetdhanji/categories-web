@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { useGame, type GamePhase, type RoundInfo } from '../context/GameContext';
 import { useSignalREvent } from '../hooks/useSignalR';
 import { api, type RoundReviewResult, type AnswerEntry, type LeaderboardEntry, type FinalLeaderboardEntry } from '../services/api';
-import { HubEvents, sendReaction } from '../services/signalr';
+import { HubEvents } from '../services/signalr';
 import { useConnectionStatus } from '../hooks/useConnectionStatus';
 
 const CATEGORY_REVIEW_SECONDS = 30;
@@ -43,10 +43,18 @@ export default function ReviewPage() {
   const [disputeProgress, setDisputeProgress] = useState<Record<string, { count: number; total: number }>>({});
   const [resolvedDisputes, setResolvedDisputes] = useState<Record<string, boolean>>({}); // disputeId → isValid
   const [showLeaderboard, setShowLeaderboard] = useState(false);
+  const [revealing, setRevealing] = useState(true);
   const [advancing, setAdvancing] = useState(false);
   const advancingRef = useRef(false);
   const { isReconnecting } = useConnectionStatus();
   const reconnectingRef = useRef(false);
+
+  // Reveal animation: flash category name centered, then show answers
+  useEffect(() => {
+    setRevealing(true);
+    const t = setTimeout(() => setRevealing(false), 1400);
+    return () => clearTimeout(t);
+  }, [categoryIndex]);
 
   // Fetch round results on mount
   useEffect(() => {
@@ -238,7 +246,7 @@ export default function ReviewPage() {
     return (
       <div
         className="flex flex-col items-center justify-center gap-3 min-h-screen"
-        style={{ background: 'linear-gradient(144.77deg, #1e1a4d 0%, #59168b 50%, #312c85 100%)', color: '#ef4444' }}
+        style={{ color: '#ef4444' }}
       >
         <span className="font-bold text-sm">Failed to load results</span>
         <span className="text-xs font-mono max-w-sm text-center" style={{ color: '#9ca3af' }}>{loadError}</span>
@@ -257,7 +265,7 @@ export default function ReviewPage() {
     return (
       <div
         className="flex items-center justify-center min-h-screen"
-        style={{ background: 'linear-gradient(144.77deg, #1e1a4d 0%, #59168b 50%, #312c85 100%)', color: '#9ca3af' }}
+        style={{ color: '#9ca3af' }}
       >
         Loading results…
       </div>
@@ -289,21 +297,19 @@ export default function ReviewPage() {
   }
 
   return (
-    <div
-      className="relative min-h-screen flex flex-col"
-      style={{
-        background: 'linear-gradient(144.77deg, #1e1a4d 0%, #59168b 50%, #312c85 100%)',
-        color: '#e5e7eb',
-      }}
-    >
+    <div className="relative min-h-screen flex flex-col overflow-hidden" style={{ color: '#e5e7eb' }}>
       {/* Background blobs */}
-      <div
-        className="pointer-events-none fixed rounded-full"
-        style={{ width: 500, height: 500, top: -100, right: -80, background: '#7c3aed', opacity: 0.25, filter: 'blur(120px)', zIndex: 0 }}
+      <motion.div
+        className="pointer-events-none absolute rounded-full"
+        style={{ width: 500, height: 500, top: -100, right: -80, background: '#7c3aed', opacity: 0.25, filter: 'blur(120px)' }}
+        animate={{ y: [0, -18, 0], scale: [1, 1.06, 1] }}
+        transition={{ duration: 10, repeat: Infinity, ease: 'easeInOut' }}
       />
-      <div
-        className="pointer-events-none fixed rounded-full"
-        style={{ width: 500, height: 500, bottom: -100, left: -80, background: '#ec4899', opacity: 0.2, filter: 'blur(120px)', zIndex: 0 }}
+      <motion.div
+        className="pointer-events-none absolute rounded-full"
+        style={{ width: 500, height: 500, bottom: -100, left: -80, background: '#ec4899', opacity: 0.2, filter: 'blur(120px)' }}
+        animate={{ y: [0, -18, 0], scale: [1, 1.06, 1] }}
+        transition={{ duration: 12, repeat: Infinity, ease: 'easeInOut', delay: 3 }}
       />
 
       {/* Header */}
@@ -373,151 +379,191 @@ export default function ReviewPage() {
       </div>
 
       {/* Main content */}
-      <main className="relative z-10 flex-1 flex flex-col items-center px-4 pt-4 pb-28 max-w-4xl mx-auto w-full">
-        {/* Category name */}
+      <main className="relative z-10 flex-1 flex flex-col items-center px-4 pt-4 pb-32 max-w-2xl mx-auto w-full">
         <AnimatePresence mode="wait">
           <motion.div
             key={categoryIndex}
             initial={{ opacity: 0, scale: 0.95, filter: 'blur(10px)' }}
             animate={{ opacity: 1, scale: 1, filter: 'blur(0px)' }}
             exit={{ opacity: 0, scale: 1.05, filter: 'blur(10px)' }}
-            transition={{ duration: 0.3 }}
-            className="flex flex-col items-center gap-2 mb-6 text-center"
+            transition={{ duration: 0.4 }}
+            className="w-full flex-1 flex flex-col justify-center relative"
+            style={{ minHeight: 400 }}
           >
-            <h2 className="text-4xl md:text-5xl font-black text-white drop-shadow-lg">
-              {currentCategory.name}
-            </h2>
+            {revealing ? (
+              /* Phase 1 — big centered title flash */
+              <div className="absolute inset-0 flex items-center justify-center pointer-events-none px-4">
+                <motion.h2
+                  layoutId={`cat-name-${categoryIndex}`}
+                  initial={{ scale: 0.5, opacity: 0 }}
+                  animate={{ scale: 1, opacity: 1 }}
+                  transition={{ type: 'spring', bounce: 0.6, duration: 0.8 }}
+                  className="font-black text-white text-center leading-tight px-4"
+                  style={{
+                    fontSize: 'clamp(2.5rem, 8vw, 4.5rem)',
+                    filter: 'drop-shadow(0 0 40px rgba(34,211,238,0.8))',
+                  }}
+                >
+                  {currentCategory.name}
+                </motion.h2>
+              </div>
+            ) : (
+              /* Phase 2 — card slides up, title animates from center into header */
+              <motion.div
+                initial={{ opacity: 0, y: 60 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.5, type: 'spring', bounce: 0 }}
+                className="rounded-[2rem] overflow-hidden w-full"
+                style={{ background: 'rgba(0,0,0,0.4)', backdropFilter: 'blur(24px)', border: '1px solid rgba(255,255,255,0.1)', boxShadow: '0 15px 40px rgba(0,0,0,0.4)' }}
+              >
+                {/* Card header — title flies in from center via layoutId */}
+                <div
+                  className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 px-6 py-5"
+                  style={{ background: 'linear-gradient(to bottom, rgba(255,255,255,0.1), transparent)', borderBottom: '1px solid rgba(255,255,255,0.1)', minHeight: 88 }}
+                >
+                  <motion.h2
+                    layoutId={`cat-name-${categoryIndex}`}
+                    className="text-white font-black text-2xl sm:text-3xl tracking-wide"
+                    transition={{ type: 'spring', bounce: 0.2, duration: 0.8 }}
+                  >
+                    {currentCategory.name}
+                  </motion.h2>
+                  <motion.div
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    transition={{ delay: 0.4 }}
+                    className="flex items-center gap-2"
+                  >
+                    {uniqueCount > 0 && (
+                      <span className="text-cyan-400 text-[10px] font-bold px-2.5 py-1 rounded-md flex items-center gap-1"
+                        style={{ background: 'rgba(34,211,238,0.1)', border: '1px solid rgba(34,211,238,0.2)' }}>
+                        ✓ {uniqueCount} Unique
+                      </span>
+                    )}
+                    {disputedCount > 0 && (
+                      <span className="text-orange-400 text-[10px] font-bold px-2.5 py-1 rounded-md flex items-center gap-1 animate-pulse"
+                        style={{ background: 'rgba(249,115,22,0.1)', border: '1px solid rgba(249,115,22,0.2)' }}>
+                        ⚠ {disputedCount} Disputed
+                      </span>
+                    )}
+                  </motion.div>
+                </div>
+
+                {/* Answer rows — stagger in with listVariants */}
+                {currentCategory.entries.length === 0 ? (
+                  <div className="flex items-center justify-center py-12">
+                    <span className="text-sm" style={{ color: 'rgba(255,255,255,0.4)' }}>No answers submitted</span>
+                  </div>
+                ) : (
+                  <motion.div
+                    variants={{ hidden: { opacity: 0 }, visible: { opacity: 1, transition: { staggerChildren: 0.1, delayChildren: 0.1 } } }}
+                    initial="hidden"
+                    animate="visible"
+                    className="p-4 sm:p-6 space-y-3"
+                  >
+                    {currentCategory.entries.map((entry, i) => (
+                      <motion.div
+                        key={`${entry.normalizedAnswer}-${i}`}
+                        variants={{ hidden: { opacity: 0, y: 30, scale: 0.95 }, visible: { opacity: 1, y: 0, scale: 1, transition: { type: 'spring', stiffness: 300, damping: 24 } } }}
+                      >
+                        <AnswerRow
+                          entry={entry}
+                          category={currentCategory.name}
+                          playerId={playerId}
+                          players={players}
+                          myLike={myLikes[currentCategory.name]}
+                          myVote={entry.disputeId ? myDisputeVotes[entry.disputeId] : undefined}
+                          progress={entry.disputeId ? disputeProgress[entry.disputeId] : undefined}
+                          resolved={entry.disputeId ? resolvedDisputes[entry.disputeId] : undefined}
+                          isLast={i === currentCategory.entries.length - 1}
+                          onLike={handleLike}
+                          onDisputeVote={handleDisputeVote}
+                        />
+                      </motion.div>
+                    ))}
+                  </motion.div>
+                )}
+              </motion.div>
+            )}
           </motion.div>
         </AnimatePresence>
 
-        {/* Answers card */}
-        <div
-          className="w-full rounded-3xl overflow-hidden"
-          style={{ background: 'rgba(0,0,0,0.4)', backdropFilter: 'blur(24px)', border: '1px solid rgba(255,255,255,0.1)' }}
-        >
-          {/* Card header */}
-          <div
-            className="flex items-center justify-between px-5 py-3"
-            style={{ borderBottom: '1px solid rgba(255,255,255,0.08)' }}
-          >
-            <span className="font-bold text-sm text-white">{currentCategory.name}</span>
-            <div className="flex items-center gap-2">
-              {uniqueCount > 0 && (
-                <span
-                  className="text-xs font-bold px-2 py-0.5 rounded-full"
-                  style={{ background: 'rgba(34,211,238,0.15)', border: '1px solid rgba(34,211,238,0.3)', color: '#22d3ee' }}
-                >
-                  {uniqueCount} Unique
-                </span>
-              )}
-              {disputedCount > 0 && (
-                <span
-                  className="text-xs font-bold px-2 py-0.5 rounded-full"
-                  style={{ background: 'rgba(245,158,11,0.15)', border: '1px solid rgba(245,158,11,0.3)', color: '#f59e0b' }}
-                >
-                  {disputedCount} Disputed
-                </span>
-              )}
-            </div>
-          </div>
-
-          {/* Answer rows */}
-          {currentCategory.entries.length === 0 ? (
-            <div className="flex items-center justify-center py-12">
-              <span className="text-sm" style={{ color: 'rgba(255,255,255,0.4)' }}>No answers submitted</span>
-            </div>
-          ) : (
-            currentCategory.entries.map((entry, i) => (
-              <AnswerRow
-                key={`${entry.normalizedAnswer}-${i}`}
-                entry={entry}
-                category={currentCategory.name}
-                playerId={playerId}
-                players={players}
-                myLike={myLikes[currentCategory.name]}
-                myVote={entry.disputeId ? myDisputeVotes[entry.disputeId] : undefined}
-                progress={entry.disputeId ? disputeProgress[entry.disputeId] : undefined}
-                resolved={entry.disputeId ? resolvedDisputes[entry.disputeId] : undefined}
-                isLast={i === currentCategory.entries.length - 1}
-                onLike={handleLike}
-                onDisputeVote={handleDisputeVote}
-              />
-            ))
-          )}
-        </div>
-
         {/* Like hint */}
-        <div className="flex items-center gap-2 mt-4 opacity-80">
-          <HeartIcon filled={false} color="rgba(255,255,255,0.5)" size={16} />
-          <span className="text-sm" style={{ color: 'rgba(255,255,255,0.5)' }}>Pick the best answer for this category (1 vote)</span>
-        </div>
-      </main>
-
-      {/* Bottom bar */}
-      <footer
-        className="fixed bottom-0 left-0 right-0 z-20 flex items-center justify-between px-4 md:px-6 py-3"
-        style={{
-          paddingBottom: 'max(0.75rem, env(safe-area-inset-bottom))',
-          background: 'rgba(17,6,60,0.8)',
-          backdropFilter: 'blur(24px)',
-          borderTop: '1px solid rgba(255,255,255,0.1)',
-        }}
-      >
-        {/* Emoji reaction button */}
-        <button
-          onClick={() => sendReaction(gameId ?? '', '🔥')}
-          className="flex items-center justify-center rounded-full shrink-0 transition-transform hover:scale-110"
-          style={{ width: 40, height: 40, background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.15)' }}
-        >
-          <span style={{ fontSize: 20 }}>😊</span>
-        </button>
-
-        {/* Center: host actions / waiting */}
-        {isHost ? (
-          <div className="flex items-center gap-2">
-            {/* Prev arrow */}
-            <button
-              onClick={() => {
-                if (categoryIndex > 0) setCategoryIndex(categoryIndex - 1);
-              }}
-              disabled={categoryIndex === 0}
-              className="flex items-center justify-center rounded-xl font-bold text-sm transition-all disabled:opacity-30"
-              style={{
-                width: 40,
-                height: 40,
-                background: 'rgba(255,255,255,0.1)',
-                border: '1px solid rgba(255,255,255,0.15)',
-                color: '#e5e7eb',
-              }}
-              title="Previous category"
-            >
-              <ChevronLeftIcon />
-            </button>
-            <button
-              onClick={handleAdvance}
-              disabled={advancing}
-              className="flex items-center gap-2 px-5 rounded-xl font-bold text-sm transition-all disabled:opacity-50"
-              style={{
-                height: 42,
-                background: 'linear-gradient(135deg, #22d3ee 0%, #3b82f6 100%)',
-                color: '#0b0f14',
-                boxShadow: '0 4px 15px rgba(34,211,238,0.3)',
-              }}
-            >
-              <span>{categoryIndex >= totalCategories - 1 ? 'Finish Review' : 'Next Category'}</span>
-              <SkipForwardIcon />
-            </button>
-          </div>
-        ) : (
-          <div className="flex items-center gap-2" style={{ color: 'rgba(255,255,255,0.5)' }}>
-            <span className="text-sm font-medium">Waiting for Host</span>
-            <BouncingDots />
+        {!revealing && (
+          <div className="flex items-center gap-2 mt-4 opacity-70">
+            <HeartIcon filled={false} color="rgba(255,255,255,0.5)" size={16} />
+            <span className="text-sm" style={{ color: 'rgba(255,255,255,0.5)' }}>Pick the best answer for this category (1 vote)</span>
           </div>
         )}
+      </main>
 
-        {/* Right: spacer to balance layout */}
-        <div style={{ width: 40 }} />
-      </footer>
+      {/* Bottom fade + bar — matches mock exactly */}
+      <div className="fixed bottom-0 left-0 right-0 z-50 pointer-events-none flex justify-center">
+        <div className="absolute bottom-full left-0 w-full h-32" style={{ background: 'linear-gradient(to top, #0e0b2e, rgba(14,11,46,0.9), transparent)' }} />
+        <div
+          className="w-full pointer-events-auto"
+          style={{ background: 'rgba(14,11,46,0.9)', backdropFilter: 'blur(24px)', borderTop: '1px solid rgba(255,255,255,0.1)', boxShadow: '0 -10px 40px rgba(0,0,0,0.5)' }}
+        >
+          <div className="max-w-2xl mx-auto px-4 pt-4" style={{ paddingBottom: 'max(1rem, env(safe-area-inset-bottom))' }}>
+            {isHost ? (
+              <div className="flex items-center gap-3">
+                <motion.button
+                  whileHover={categoryIndex > 0 ? { scale: 1.05 } : {}}
+                  whileTap={categoryIndex > 0 ? { scale: 0.95 } : {}}
+                  onClick={() => { if (categoryIndex > 0) setCategoryIndex(categoryIndex - 1); }}
+                  disabled={categoryIndex === 0}
+                  className="flex items-center justify-center rounded-2xl transition-all"
+                  style={{
+                    width: 56, height: 56, flexShrink: 0,
+                    background: categoryIndex === 0 ? 'rgba(255,255,255,0.05)' : 'rgba(255,255,255,0.1)',
+                    color: categoryIndex === 0 ? 'rgba(255,255,255,0.2)' : '#fff',
+                    cursor: categoryIndex === 0 ? 'not-allowed' : 'pointer',
+                  }}
+                >
+                  <ChevronLeftIcon />
+                </motion.button>
+                <motion.button
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                  onClick={handleAdvance}
+                  disabled={advancing}
+                  className="flex-1 flex items-center justify-center gap-2 rounded-2xl font-black text-xl text-white transition-all disabled:opacity-50"
+                  style={categoryIndex >= totalCategories - 1 ? {
+                    height: 56,
+                    background: 'linear-gradient(to right, #ec4899, #f43f5e)',
+                    borderBottom: '4px solid #9f1239',
+                    boxShadow: '0 4px 20px rgba(244,63,94,0.4)',
+                  } : {
+                    height: 56,
+                    background: 'linear-gradient(to right, #22d3ee, #3b82f6)',
+                    borderBottom: '4px solid #1d4ed8',
+                    boxShadow: '0 4px 20px rgba(6,182,212,0.4)',
+                  }}
+                >
+                  {advancing ? 'Advancing…' : categoryIndex >= totalCategories - 1 ? 'Finish Review' : 'Next Category'}
+                  <SkipForwardIcon />
+                </motion.button>
+              </div>
+            ) : (
+              <div
+                className="flex items-center justify-center gap-3 rounded-2xl p-4 w-full"
+                style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)' }}
+              >
+                <div className="flex gap-1">
+                  {[0, 1, 2].map(i => (
+                    <span
+                      key={i}
+                      className="w-2 h-2 rounded-full bg-cyan-400"
+                      style={{ display: 'inline-block', animation: `bounceDot 1.2s ease-in-out ${i * 150}ms infinite` }}
+                    />
+                  ))}
+                </div>
+                <span className="text-white/70 font-semibold text-lg">Waiting for Host...</span>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
@@ -780,18 +826,19 @@ function LeaderboardView({ leaderboard, roundNumber, maxRounds, isHost, gameId, 
   }
 
   return (
-    <div
-      className="relative min-h-screen flex flex-col items-center justify-center px-4 py-12"
-      style={{ background: 'linear-gradient(144.77deg, #1e1a4d 0%, #59168b 50%, #312c85 100%)' }}
-    >
+    <div className="relative min-h-screen flex flex-col items-center justify-center px-4 py-12 overflow-hidden">
       {/* Background blobs */}
-      <div
-        className="pointer-events-none fixed rounded-full"
+      <motion.div
+        className="pointer-events-none absolute rounded-full"
         style={{ width: 500, height: 500, top: -100, right: -80, background: '#7c3aed', opacity: 0.25, filter: 'blur(120px)' }}
+        animate={{ y: [0, -18, 0], scale: [1, 1.06, 1] }}
+        transition={{ duration: 10, repeat: Infinity, ease: 'easeInOut' }}
       />
-      <div
-        className="pointer-events-none fixed rounded-full"
+      <motion.div
+        className="pointer-events-none absolute rounded-full"
         style={{ width: 500, height: 500, bottom: -100, left: -80, background: '#ec4899', opacity: 0.2, filter: 'blur(120px)' }}
+        animate={{ y: [0, -18, 0], scale: [1, 1.06, 1] }}
+        transition={{ duration: 12, repeat: Infinity, ease: 'easeInOut', delay: 3 }}
       />
 
       <div className="relative z-10 w-full max-w-lg flex flex-col gap-6">
@@ -914,37 +961,6 @@ function Badge({ type }: { type: 'unique' | 'shared' | 'disputed' | 'valid' | 'i
   );
 }
 
-// --- Bouncing dots animation ---
-
-function BouncingDots() {
-  return (
-    <span className="flex items-center gap-0.5">
-      {[0, 1, 2].map((i) => (
-        <span
-          key={i}
-          className="rounded-full"
-          style={{
-            width: 4,
-            height: 4,
-            background: 'rgba(255,255,255,0.5)',
-            display: 'inline-block',
-            animation: `bounceDot 1.2s ease-in-out ${i * 0.2}s infinite`,
-          }}
-        />
-      ))}
-      <style>{`
-        @keyframes bounceDot {
-          0%, 80%, 100% { transform: translateY(0); }
-          40% { transform: translateY(-6px); }
-        }
-        @keyframes disputePulse {
-          0%, 100% { background-color: rgba(67,20,7,0.3); }
-          50% { background-color: rgba(120,53,15,0.3); }
-        }
-      `}</style>
-    </span>
-  );
-}
 
 // --- Icons ---
 

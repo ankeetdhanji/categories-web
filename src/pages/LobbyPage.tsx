@@ -236,17 +236,26 @@ export default function LobbyPage() {
 
   return (
     <div
-      className="relative min-h-screen overflow-x-hidden"
-      style={{ background: 'linear-gradient(136.76deg, #1e1a4d 0%, #59168b 50%, #312c85 100%)' }}
+      className="relative min-h-screen overflow-hidden"
     >
       {/* Decorative blur blobs */}
-      <div
-        className="pointer-events-none fixed top-0 right-0 w-[400px] h-[400px] rounded-full"
-        style={{ background: '#ad46ff', filter: 'blur(100px)', opacity: 0.2, transform: 'translate(30%, -30%)' }}
+      <motion.div
+        className="pointer-events-none absolute rounded-full opacity-20"
+        style={{ width: 400, height: 400, background: '#ad46ff', filter: 'blur(100px)', top: '-80px', right: '-80px' }}
+        animate={{ y: [0, -18, 0], scale: [1, 1.06, 1] }}
+        transition={{ duration: 10, repeat: Infinity, ease: 'easeInOut' }}
       />
-      <div
-        className="pointer-events-none fixed bottom-0 left-0 w-[350px] h-[350px] rounded-full"
-        style={{ background: '#f6339a', filter: 'blur(100px)', opacity: 0.1, transform: 'translate(-30%, 30%)' }}
+      <motion.div
+        className="pointer-events-none absolute rounded-full opacity-10"
+        style={{ width: 350, height: 350, background: '#f6339a', filter: 'blur(100px)', bottom: '10%', left: '-80px' }}
+        animate={{ y: [0, -18, 0], scale: [1, 1.06, 1] }}
+        transition={{ duration: 12, repeat: Infinity, ease: 'easeInOut', delay: 3 }}
+      />
+      <motion.div
+        className="pointer-events-none absolute rounded-full opacity-10"
+        style={{ width: 200, height: 200, background: '#00b8db', filter: 'blur(60px)', top: '45%', left: '5%' }}
+        animate={{ y: [0, -14, 0], scale: [1, 1.05, 1] }}
+        transition={{ duration: 9, repeat: Infinity, ease: 'easeInOut', delay: 1.5 }}
       />
       {/* Sparkle icons */}
       <SparkleIcon className="pointer-events-none fixed top-16 right-12 opacity-20 text-white" size={20} />
