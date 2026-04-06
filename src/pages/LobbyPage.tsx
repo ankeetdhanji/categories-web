@@ -209,14 +209,14 @@ export default function LobbyPage() {
     const trimmed = categoryInput.trim();
     if (!trimmed || !modalDraft) return;
     if (modalDraft.categories.some((c) => c.toLowerCase() === trimmed.toLowerCase())) return;
-    setModalDraft({ ...modalDraft, categories: [...modalDraft.categories, trimmed] });
+    setModalDraft(prev => prev ? { ...prev, categories: [...prev.categories, trimmed] } : null);
     setCategoryInput('');
     categoryInputRef.current?.focus();
   }
 
   function handleModalRemoveCategory(cat: string) {
     if (!modalDraft) return;
-    setModalDraft({ ...modalDraft, categories: modalDraft.categories.filter((c) => c !== cat) });
+    setModalDraft(prev => prev ? { ...prev, categories: prev.categories.filter((c) => c !== cat) } : null);
   }
 
   function handleSaveChanges() {
@@ -709,7 +709,7 @@ export default function LobbyPage() {
                     return (
                       <button
                         key={n}
-                        onClick={() => setModalDraft({ ...modalDraft, maxRounds: n })}
+                        onClick={() => setModalDraft(prev => prev ? { ...prev, maxRounds: n } : null)}
                         className="h-[54px] rounded-[14px] font-bold text-[18px] transition-all"
                         style={selected ? {
                           background: '#2b7fff',
@@ -737,7 +737,7 @@ export default function LobbyPage() {
                 </div>
                 <div className="grid grid-cols-2 gap-2">
                   <button
-                    onClick={() => setModalDraft({ ...modalDraft, isTimedMode: true })}
+                    onClick={() => setModalDraft(prev => prev ? { ...prev, isTimedMode: true } : null)}
                     className="h-[50px] rounded-[14px] font-bold text-[16px] flex items-center justify-center gap-2 transition-all"
                     style={modalDraft.isTimedMode ? {
                       background: '#7ccf00',
@@ -754,7 +754,7 @@ export default function LobbyPage() {
                     {modalDraft.isTimedMode && <ModalCheckIcon />}
                   </button>
                   <button
-                    onClick={() => setModalDraft({ ...modalDraft, isTimedMode: false })}
+                    onClick={() => setModalDraft(prev => prev ? { ...prev, isTimedMode: false } : null)}
                     className="h-[50px] rounded-[14px] font-bold text-[16px] flex items-center justify-center gap-2 transition-all"
                     style={!modalDraft.isTimedMode ? {
                       background: '#6129ff',
@@ -793,7 +793,7 @@ export default function LobbyPage() {
                       return (
                         <button
                           key={sec}
-                          onClick={() => setModalDraft({ ...modalDraft, roundDurationSeconds: sec })}
+                          onClick={() => setModalDraft(prev => prev ? { ...prev, roundDurationSeconds: sec } : null)}
                           className="h-[54px] rounded-[14px] font-bold text-[18px] transition-all"
                           style={selected ? {
                             background: '#ff6900',
