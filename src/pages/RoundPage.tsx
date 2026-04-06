@@ -38,6 +38,8 @@ export default function RoundPage() {
   const [activeCategory, setActiveCategory] = useState<string | null>(null);
   const inputRefs = useRef<(HTMLInputElement | null)[]>([]);
   const submittedRef = useRef(false);
+  const answersRef = useRef<Record<string, string>>({});
+  answersRef.current = answers;
 
   // Restore answer draft from localStorage on mount / round change
   useEffect(() => {
@@ -152,7 +154,7 @@ export default function RoundPage() {
     submittedRef.current = true;
     setSubmitted(true);
     try {
-      await api.submitAnswers(gameId, playerId, answers);
+      await api.submitAnswers(gameId, playerId, answersRef.current);
       if (currentRound?.roundNumber) {
         localStorage.removeItem(`draft_${gameId}_${currentRound.roundNumber}`);
       }
