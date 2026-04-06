@@ -51,6 +51,7 @@ export default function LobbyPage() {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [modalDraft, setModalDraft] = useState<GameSettings | null>(null);
   const categoryInputRef = useRef<HTMLInputElement>(null);
+  const isFirstModalDraftSet = useRef(true);
 
   // Init draft once from settings, falling back to defaults if categories are empty.
   const draftInitialized = useRef(false);
@@ -145,6 +146,15 @@ export default function LobbyPage() {
     if (!isHost) setDraft(s);
   });
 
+  useEffect(() => {
+    if (!settingsOpen || !modalDraft) return;
+    if (isFirstModalDraftSet.current) {
+      isFirstModalDraftSet.current = false;
+      return;
+    }
+    applySettings(modalDraft);
+  }, [modalDraft]);
+
   function spawnFloater(emoji: string) {
     const id = nextId;
     setNextId((n) => n + 1);
@@ -220,8 +230,6 @@ export default function LobbyPage() {
   }
 
   function handleSaveChanges() {
-    if (!modalDraft) return;
-    applySettings(modalDraft);
     setSettingsOpen(false);
     setCategoryInput('');
   }
@@ -479,7 +487,7 @@ export default function LobbyPage() {
               </div>
               {isHost && (
                 <button
-                  onClick={() => { setModalDraft(s ? { ...s } : null); setSettingsOpen(true); }}
+                  onClick={() => { isFirstModalDraftSet.current = true; setModalDraft(s ? { ...s } : null); setSettingsOpen(true); }}
                   className="flex items-center gap-1.5 text-sm font-bold px-4 py-2 rounded-full transition-colors"
                   style={{ background: 'rgba(255,255,255,0.1)', color: 'white' }}
                 >
@@ -880,7 +888,7 @@ export default function LobbyPage() {
                   boxShadow: '0px 4px 20px 0px rgba(236,72,153,0.4)',
                 }}
               >
-                Save Changes
+                Done
               </button>
             </div>
           </motion.div>
