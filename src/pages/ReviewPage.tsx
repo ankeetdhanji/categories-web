@@ -299,17 +299,13 @@ export default function ReviewPage() {
   return (
     <div className="relative min-h-screen flex flex-col overflow-hidden" style={{ color: '#e5e7eb' }}>
       {/* Background blobs */}
-      <motion.div
+      <div
         className="pointer-events-none absolute rounded-full"
         style={{ width: 500, height: 500, top: -100, right: -80, background: '#7c3aed', opacity: 0.25, filter: 'blur(120px)' }}
-        animate={{ y: [0, -18, 0], scale: [1, 1.06, 1] }}
-        transition={{ duration: 10, repeat: Infinity, ease: 'easeInOut' }}
       />
-      <motion.div
+      <div
         className="pointer-events-none absolute rounded-full"
         style={{ width: 500, height: 500, bottom: -100, left: -80, background: '#ec4899', opacity: 0.2, filter: 'blur(120px)' }}
-        animate={{ y: [0, -18, 0], scale: [1, 1.06, 1] }}
-        transition={{ duration: 12, repeat: Infinity, ease: 'easeInOut', delay: 3 }}
       />
 
       {/* Header */}
@@ -383,10 +379,10 @@ export default function ReviewPage() {
         <AnimatePresence mode="wait">
           <motion.div
             key={categoryIndex}
-            initial={{ opacity: 0, scale: 0.95, filter: 'blur(10px)' }}
-            animate={{ opacity: 1, scale: 1, filter: 'blur(0px)' }}
-            exit={{ opacity: 0, scale: 1.05, filter: 'blur(10px)' }}
-            transition={{ duration: 0.4 }}
+            initial={{ opacity: 0, scale: 0.95, y: 8 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 1.03, y: -8 }}
+            transition={{ duration: 0.25 }}
             className="w-full flex-1 flex flex-col justify-center relative"
             style={{ minHeight: 400 }}
           >
@@ -828,17 +824,13 @@ function LeaderboardView({ leaderboard, roundNumber, maxRounds, isHost, gameId, 
   return (
     <div className="relative min-h-screen flex flex-col items-center justify-center px-4 py-12 overflow-hidden">
       {/* Background blobs */}
-      <motion.div
+      <div
         className="pointer-events-none absolute rounded-full"
         style={{ width: 500, height: 500, top: -100, right: -80, background: '#7c3aed', opacity: 0.25, filter: 'blur(120px)' }}
-        animate={{ y: [0, -18, 0], scale: [1, 1.06, 1] }}
-        transition={{ duration: 10, repeat: Infinity, ease: 'easeInOut' }}
       />
-      <motion.div
+      <div
         className="pointer-events-none absolute rounded-full"
         style={{ width: 500, height: 500, bottom: -100, left: -80, background: '#ec4899', opacity: 0.2, filter: 'blur(120px)' }}
-        animate={{ y: [0, -18, 0], scale: [1, 1.06, 1] }}
-        transition={{ duration: 12, repeat: Infinity, ease: 'easeInOut', delay: 3 }}
       />
 
       <div className="relative z-10 w-full max-w-lg flex flex-col gap-6">
