@@ -158,6 +158,10 @@ export default function RoundPage() {
       if (currentRound?.roundNumber) {
         localStorage.removeItem(`draft_${gameId}_${currentRound.roundNumber}`);
       }
+      // Signal done so the round ends immediately when all players have submitted,
+      // rather than waiting for the server timer. Errors are swallowed since the
+      // server timer is the authoritative ender in timed mode.
+      api.markDone(gameId, playerId).catch(() => {});
     } catch {
       if (!auto) {
         submittedRef.current = false;
@@ -229,7 +233,7 @@ export default function RoundPage() {
     : 'text-[#fdc700]';
   const filledCount = Object.values(answers).filter((v) => v.trim()).length;
   const categories = currentRound?.categories ?? [];
-  const roundNum = currentRound?.roundNumber ?? countdownRoundNumber;
+  const roundNum = isCountdown ? (countdownRoundNumber ?? currentRound?.roundNumber) : currentRound?.roundNumber;
 
   const typingPlayerIds = [...new Set(Object.values(answerPresence).flat())].filter(id => id !== playerId);
   const typingCount = typingPlayerIds.length;
@@ -697,7 +701,7 @@ export default function RoundPage() {
           <CountdownOverlay
             seconds={countdownSeconds}
             letter={countdownLetter ?? currentRound?.letter ?? '?'}
-            roundNumber={currentRound?.roundNumber ?? countdownRoundNumber ?? null}
+            roundNumber={countdownRoundNumber ?? currentRound?.roundNumber ?? null}
           />
         )}
       </AnimatePresence>
