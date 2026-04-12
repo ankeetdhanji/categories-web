@@ -125,9 +125,12 @@ export default function RoundPage() {
     return () => clearInterval(id);
   }, [isCountdown, countdownStartAt]);
 
-  // Timer synced to server endsAt (timed mode)
+  // Timer synced to server endsAt (timed mode).
+  // Must not run during countdown: currentRound still holds the previous round's stale endsAt
+  // (already in the past), which would immediately trigger a ghost auto-submit with empty answers
+  // and a ghost markDone that can prematurely end the upcoming round.
   useEffect(() => {
-    if (!currentRound?.endsAt) return;
+    if (!currentRound?.endsAt || isCountdown) return;
     function tick() {
       const remaining = (new Date(currentRound!.endsAt!).getTime() - Date.now()) / 1000;
       const clamped = Math.max(0, Math.ceil(remaining));
@@ -137,7 +140,7 @@ export default function RoundPage() {
     tick();
     const id = setInterval(tick, 500);
     return () => clearInterval(id);
-  }, [currentRound?.endsAt]);
+  }, [currentRound?.endsAt, isCountdown]);
 
   // Reset state when a new round starts
   useEffect(() => {
@@ -220,7 +223,7 @@ export default function RoundPage() {
     }
   }
 
-  const showSubmittingOverlay = isTimedMode && secondsLeft !== null && secondsLeft <= 0;
+  const showSubmittingOverlay = isTimedMode && !isCountdown && secondsLeft !== null && secondsLeft <= 0;
 
   const timerClass = secondsLeft !== null && secondsLeft <= 5
     ? 'bg-red-950/80 border-2 border-red-500'
