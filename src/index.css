@@ -67,6 +67,11 @@
   50%      { background-color: rgba(249,115,22,0.08); }
 }
 
+html {
+  background: linear-gradient(145.1deg, #312C85 0%, #59168B 50%, #372AAC 100%);
+  background-attachment: fixed;
+}
+
 body {
   margin: 0;
   min-height: 100dvh;
@@ -75,5 +80,6 @@ body {
   color: var(--color-text);
   font-family: 'Inter', system-ui, -apple-system, sans-serif;
   -webkit-font-smoothing: antialiased;
+  padding-top: env(safe-area-inset-top);
   padding-bottom: env(safe-area-inset-bottom);
 }
