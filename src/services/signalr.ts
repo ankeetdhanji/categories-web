@@ -60,4 +60,5 @@ export const HubEvents = {
   DisputeVoteUpdated: 'DisputeVoteUpdated',
   ReviewComplete: 'ReviewComplete',
   PlayerAnswerUpdated: 'PlayerAnswerUpdated',
+  GameStateSync: 'GameStateSync',
 } as const;
