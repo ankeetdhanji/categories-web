@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Clock, ArrowLeft, ArrowRight, Check, X, AlertTriangle, Heart, Flame, Sparkles, CheckCircle2 } from 'lucide-react';
+import { Clock, ArrowLeft, ArrowRight, Check, X, AlertTriangle, Heart, Flame, Sparkles, CheckCircle2, Crown, ArrowUp, ArrowDown, Trophy } from 'lucide-react';
 import { useGame, type GamePhase, type RoundInfo } from '../context/GameContext';
 import { useSignalREvent } from '../hooks/useSignalR';
 import { api, type RoundReviewResult, type AnswerEntry, type LeaderboardEntry, type FinalLeaderboardEntry } from '../services/api';
@@ -801,7 +801,25 @@ function LeaderboardView({ leaderboard, roundNumber, maxRounds, isHost, gameId, 
 }) {
   const [finalizing, setFinalizing] = useState(false);
   const [starting, setStarting] = useState(false);
+  const [animPhase, setAnimPhase] = useState<'initial' | 'reveal_points' | 'tally' | 'reorder' | 'settled'>('initial');
   const isLastRound = roundNumber === maxRounds;
+
+  useEffect(() => {
+    const t1 = setTimeout(() => setAnimPhase('reveal_points'), 1200);
+    const t2 = setTimeout(() => setAnimPhase('tally'), 2800);
+    const t3 = setTimeout(() => setAnimPhase('reorder'), 4000);
+    const t4 = setTimeout(() => setAnimPhase('settled'), 5000);
+    return () => { clearTimeout(t1); clearTimeout(t2); clearTimeout(t3); clearTimeout(t4); };
+  }, []);
+
+  const enriched = leaderboard.map(e => ({ ...e, prevScore: e.totalScore - e.roundScore }));
+  const displayPlayers = [...enriched].sort((a, b) =>
+    (animPhase === 'initial' || animPhase === 'reveal_points' || animPhase === 'tally')
+      ? b.prevScore - a.prevScore
+      : b.totalScore - a.totalScore
+  );
+  const initialRanking = [...enriched].sort((a, b) => b.prevScore - a.prevScore).map(e => e.playerId);
+  const finalRanking = [...enriched].sort((a, b) => b.totalScore - a.totalScore).map(e => e.playerId);
 
   async function handleFinalize() {
     if (!gameId || !playerId || finalizing) return;
@@ -827,109 +845,245 @@ function LeaderboardView({ leaderboard, roundNumber, maxRounds, isHost, gameId, 
   }
 
   return (
-    <div className="relative min-h-screen flex flex-col items-center justify-center px-4 py-12 overflow-hidden">
-      {/* Background blobs */}
-      <motion.div
-        className="pointer-events-none absolute rounded-full"
-        style={{ width: 500, height: 500, top: -100, right: -80, background: '#7c3aed', opacity: 0.25, filter: 'blur(120px)' }}
-        animate={{ scale: [1, 1.1, 1], opacity: [0.2, 0.25, 0.2] }}
-        transition={{ duration: 4, repeat: Infinity, ease: 'easeInOut' }}
-      />
-      <motion.div
-        className="pointer-events-none absolute rounded-full"
-        style={{ width: 500, height: 500, bottom: -100, left: -80, background: '#ec4899', opacity: 0.2, filter: 'blur(120px)' }}
-        animate={{ scale: [1, 1.15, 1], opacity: [0.15, 0.2, 0.15] }}
-        transition={{ duration: 5, repeat: Infinity, ease: 'easeInOut', delay: 1 }}
-      />
+    <div className="min-h-screen bg-gradient-to-br from-indigo-950 via-purple-900 to-indigo-900 relative overflow-x-hidden overflow-y-auto flex flex-col font-sans pb-32">
+      {/* Ambient Background */}
+      <div className="fixed inset-0 overflow-hidden pointer-events-none z-0">
+        <div className="absolute top-0 left-0 w-full h-[30vh] bg-gradient-to-b from-indigo-500/20 to-transparent" />
+        <motion.div
+          animate={{ scale: [1, 1.1, 1], opacity: [0.15, 0.2, 0.15] }}
+          transition={{ duration: 4, repeat: Infinity }}
+          className="absolute top-[10%] -right-32 w-[30rem] h-[30rem] bg-purple-600 rounded-full blur-[120px]"
+        />
+        <motion.div
+          animate={{ scale: [1, 1.2, 1], opacity: [0.1, 0.15, 0.1] }}
+          transition={{ duration: 5, repeat: Infinity, delay: 1 }}
+          className="absolute bottom-[10%] -left-32 w-[30rem] h-[30rem] bg-pink-600 rounded-full blur-[120px]"
+        />
+        <motion.div className="absolute top-20 left-10 text-yellow-300 opacity-40"
+          animate={{ y: [0, -15, 0], scale: [1, 1.2, 1] }} transition={{ duration: 3, repeat: Infinity }}>
+          <Sparkles size={24} />
+        </motion.div>
+        <motion.div className="absolute top-40 right-12 text-cyan-300 opacity-30"
+          animate={{ y: [0, 20, 0], scale: [1, 0.8, 1] }} transition={{ duration: 4, repeat: Infinity, delay: 1 }}>
+          <Sparkles size={16} />
+        </motion.div>
+        <AnimatePresence>
+          {animPhase === 'settled' && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 0.6 }}
+              exit={{ opacity: 0 }}
+              className="absolute inset-0 z-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-yellow-500/20 via-transparent to-transparent pointer-events-none mix-blend-overlay"
+            />
+          )}
+        </AnimatePresence>
+      </div>
 
-      <div className="relative z-10 w-full max-w-lg flex flex-col gap-6">
-        {/* Header section */}
-        <div className="flex flex-col items-center gap-3">
-          <div
-            className="flex items-center gap-2 px-4 py-1.5 rounded-full font-bold text-sm text-yellow-400"
-            style={{ background: 'linear-gradient(135deg, rgba(245,158,11,0.2) 0%, rgba(249,115,22,0.2) 100%)', border: '1px solid rgba(245,158,11,0.3)' }}
-          >
-            <span>🏆</span>
-            <span>Round {roundNumber} Results</span>
+      <div className="w-full max-w-2xl mx-auto relative z-10 flex flex-col flex-1 mt-6 px-4 md:px-0">
+        {/* Header */}
+        <motion.div
+          initial={{ opacity: 0, y: -20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="flex flex-col items-center mb-8"
+        >
+          <div className="bg-black/30 backdrop-blur-xl rounded-full px-4 py-1.5 flex items-center gap-2 border border-white/10 shadow-lg mb-4">
+            <Trophy size={14} className="text-yellow-400" />
+            <span className="bg-gradient-to-r from-yellow-400 to-orange-400 text-transparent bg-clip-text text-xs font-black uppercase tracking-widest">
+              Round {roundNumber} Results
+            </span>
           </div>
-          <h2 className="font-bold text-4xl tracking-tight text-white" style={{ letterSpacing: '-0.7px' }}>
-            Leaderboard
-          </h2>
-          <span className="text-sm text-white/50">Round {roundNumber} of {maxRounds}</span>
-        </div>
+          <div className="flex flex-col items-center justify-center text-center">
+            <h1 className="text-white font-black text-4xl tracking-tight leading-tight mb-2 drop-shadow-md">
+              Leaderboard
+            </h1>
+            <p className="text-white/60 text-sm font-semibold max-w-xs">
+              {animPhase === 'initial' && 'Checking current standings...'}
+              {animPhase === 'reveal_points' && 'Adding round points...'}
+              {animPhase === 'tally' && 'Tallying new scores...'}
+              {(animPhase === 'reorder' || animPhase === 'settled') && 'The final standings!'}
+            </p>
+          </div>
+        </motion.div>
 
         {/* Player list */}
-        <div className="flex flex-col">
-          {leaderboard.map((entry, i) => (
-            <motion.div
-              key={entry.playerId}
-              layout
-              className="flex items-center gap-4 px-4 py-3 rounded-2xl mb-2"
-              style={
-                i === 0
-                  ? { background: 'rgba(234,179,8,0.1)', border: '1px solid rgba(234,179,8,0.3)' }
-                  : { background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)' }
-              }
-            >
-              <span className="font-bold text-lg w-6 text-center" style={{ color: i === 0 ? '#f59e0b' : 'rgba(255,255,255,0.4)' }}>
-                {i + 1}
-              </span>
-              <div
-                className="flex items-center justify-center rounded-full font-bold text-xs shrink-0"
-                style={{ width: 32, height: 32, background: avatarColor(entry.playerId), color: '#0b0f14' }}
-              >
-                {entry.displayName[0].toUpperCase()}
-              </div>
-              <span className="flex-1 font-semibold text-white">{entry.displayName}</span>
-              <div className="flex flex-col items-end gap-1">
-                <span className="font-bold text-base text-white">{entry.totalScore}</span>
-                <span className="text-xs px-2 py-0.5 rounded-full font-bold bg-cyan-500/20 border border-cyan-500/30 text-cyan-300">
-                  +{entry.roundScore} pts
-                </span>
-              </div>
-            </motion.div>
-          ))}
+        <div className="flex flex-col gap-3.5 relative">
+          <AnimatePresence>
+            {displayPlayers.map((player, index) => {
+              const prevRank = initialRanking.indexOf(player.playerId);
+              const newRank = finalRanking.indexOf(player.playerId);
+              const rankDiff = prevRank - newRank; // positive = moved up
+              const isFirstPlace = index === 0;
+              const currentDisplayedScore =
+                animPhase === 'initial' || animPhase === 'reveal_points'
+                  ? player.prevScore
+                  : player.totalScore;
+
+              return (
+                <motion.div
+                  key={player.playerId}
+                  layout
+                  initial={{ opacity: 0, scale: 0.9, y: 20 }}
+                  animate={{ opacity: 1, scale: 1, y: 0 }}
+                  transition={{
+                    layout: { type: 'spring', stiffness: 300, damping: 30 },
+                    opacity: { duration: 0.3 },
+                  }}
+                  className={`relative overflow-visible rounded-2xl md:rounded-[1.5rem] border backdrop-blur-xl p-3 md:p-4
+                    ${isFirstPlace
+                      ? 'bg-gradient-to-r from-yellow-500/20 to-orange-500/10 border-yellow-500/40 shadow-[0_0_20px_rgba(234,179,8,0.2)]'
+                      : 'bg-black/40 border-white/10 shadow-[0_8px_32px_rgba(0,0,0,0.3)]'
+                    }`}
+                >
+                  {isFirstPlace && (
+                    <div className="absolute inset-0 bg-yellow-500/10 animate-pulse rounded-2xl pointer-events-none" />
+                  )}
+                  <div className="flex items-center justify-between relative z-10">
+                    {/* Rank & Identity */}
+                    <div className="flex items-center gap-3 md:gap-4">
+                      <div className="flex flex-col items-center justify-center w-8">
+                        {isFirstPlace ? (
+                          <motion.div
+                            initial={{ scale: 0 }}
+                            animate={{ scale: 1 }}
+                            transition={{ type: 'spring', bounce: 0.6 }}
+                            className="text-yellow-400 drop-shadow-[0_0_8px_rgba(250,204,21,0.8)]"
+                          >
+                            <Crown size={28} className="fill-yellow-400/20" />
+                          </motion.div>
+                        ) : (
+                          <span className="text-white/40 font-black text-xl">#{index + 1}</span>
+                        )}
+                      </div>
+
+                      <div
+                        className="w-12 h-12 md:w-14 md:h-14 rounded-full flex items-center justify-center text-lg md:text-xl font-black text-white shadow-lg ring-2 ring-white/10"
+                        style={{ background: avatarColor(player.playerId), color: '#0b0f14' }}
+                      >
+                        {player.displayName[0].toUpperCase()}
+                      </div>
+
+                      <div className="flex flex-col">
+                        <span className="text-white font-bold text-lg md:text-xl tracking-wide">
+                          {player.displayName}
+                        </span>
+                        <AnimatePresence>
+                          {(animPhase === 'reorder' || animPhase === 'settled') && rankDiff !== 0 && (
+                            <motion.div
+                              initial={{ opacity: 0, height: 0, marginTop: 0 }}
+                              animate={{ opacity: 1, height: 'auto', marginTop: 4 }}
+                              className={`flex items-center gap-1 text-[10px] font-black uppercase tracking-wider
+                                ${rankDiff > 0 ? 'text-green-400' : 'text-red-400'}`}
+                            >
+                              {rankDiff > 0 ? <ArrowUp size={12} /> : <ArrowDown size={12} />}
+                              {rankDiff > 0 ? `Up ${rankDiff}` : `Down ${Math.abs(rankDiff)}`}
+                            </motion.div>
+                          )}
+                        </AnimatePresence>
+                      </div>
+                    </div>
+
+                    {/* Scores */}
+                    <div className="flex items-center gap-3">
+                      <AnimatePresence>
+                        {(animPhase === 'reveal_points' || animPhase === 'tally') && (
+                          <motion.div
+                            initial={{ opacity: 0, x: -20, scale: 0.5 }}
+                            animate={{ opacity: 1, x: 0, scale: 1 }}
+                            exit={{ opacity: 0, y: -20, filter: 'blur(5px)' }}
+                            transition={{ type: 'spring', bounce: 0.5 }}
+                            className="bg-cyan-500/20 border border-cyan-500/40 text-cyan-300 font-black text-sm md:text-base px-2.5 py-1 rounded-lg shadow-[0_0_15px_rgba(34,211,238,0.3)]"
+                          >
+                            +{player.roundScore}
+                          </motion.div>
+                        )}
+                      </AnimatePresence>
+
+                      <div className="flex flex-col items-end justify-center bg-white/5 border border-white/5 rounded-xl px-4 py-2 min-w-[5rem] text-right shadow-inner">
+                        <span className="text-white/40 text-[9px] font-black uppercase tracking-widest mb-0.5">Total</span>
+                        <motion.span
+                          key={currentDisplayedScore}
+                          initial={animPhase === 'tally' ? { scale: 1.5, color: '#4ade80' } : {}}
+                          animate={{ scale: 1, color: isFirstPlace ? '#facc15' : '#ffffff' }}
+                          transition={{ type: 'spring', bounce: 0.5 }}
+                          className={`font-black text-2xl md:text-3xl leading-none
+                            ${isFirstPlace ? 'drop-shadow-[0_0_10px_rgba(250,204,21,0.5)]' : ''}`}
+                        >
+                          {currentDisplayedScore}
+                        </motion.span>
+                      </div>
+                    </div>
+                  </div>
+                </motion.div>
+              );
+            })}
+          </AnimatePresence>
+
           {leaderboard.length === 0 && (
-            <div className="flex items-center justify-center py-8 rounded-2xl bg-white/5 border border-white/10">
+            <div className="flex items-center justify-center py-12 rounded-2xl bg-white/5 border border-white/10">
               <span className="text-sm text-white/40">No scores yet</span>
             </div>
           )}
         </div>
-
-        {/* Bottom bar — host buttons */}
-        {isHost && isLastRound ? (
-          <motion.button
-            onClick={handleFinalize}
-            disabled={finalizing}
-            whileHover={{ scale: 1.02 }}
-            whileTap={{ scale: 0.98 }}
-            className="w-full h-14 rounded-[14px] font-bold text-lg flex items-center justify-center gap-2 transition-all disabled:opacity-50 text-white relative overflow-hidden group"
-            style={{ background: 'linear-gradient(135deg, #ec4899 0%, #f43f5e 100%)', boxShadow: '0 0 20px rgba(236,72,153,0.4)' }}
-          >
-            <div className="absolute inset-0 bg-white/20 translate-y-full group-hover:translate-y-0 transition-transform duration-300" />
-            <span className="relative z-10">{finalizing ? 'Finalizing…' : '🏆 Finalize Game'}</span>
-          </motion.button>
-        ) : isHost ? (
-          <motion.button
-            onClick={handleStartNextRound}
-            disabled={starting}
-            whileHover={{ scale: 1.02 }}
-            whileTap={{ scale: 0.98 }}
-            className="w-full h-14 rounded-[14px] font-bold text-lg flex items-center justify-center gap-2 transition-all disabled:opacity-50 relative overflow-hidden group"
-            style={{ background: 'linear-gradient(135deg, #22d3ee 0%, #3b82f6 100%)', color: '#0b0f14', boxShadow: '0 0 20px rgba(34,211,238,0.3)' }}
-          >
-            <div className="absolute inset-0 bg-white/20 translate-y-full group-hover:translate-y-0 transition-transform duration-300" />
-            <span className="relative z-10">{starting ? 'Starting…' : 'Start Next Round →'}</span>
-          </motion.button>
-        ) : (
-          <div className="flex flex-col items-center gap-2">
-            {isLastRound
-              ? <p className="text-center text-sm text-white/50">Waiting for the host to finalize the game…</p>
-              : <p className="text-center text-sm text-white/50">Waiting for host...</p>
-            }
-          </div>
-        )}
       </div>
+
+      {/* Floating bottom bar — slides in on reorder/settled */}
+      <AnimatePresence>
+        {(animPhase === 'reorder' || animPhase === 'settled') && (
+          <motion.div
+            initial={{ y: 100 }}
+            animate={{ y: 0 }}
+            transition={{ type: 'spring', bounce: 0, duration: 0.6 }}
+            className="fixed bottom-0 left-0 w-full z-50 pointer-events-none flex justify-center"
+          >
+            <div className="absolute bottom-full left-0 w-full h-32 bg-gradient-to-t from-indigo-950 via-indigo-950/90 to-transparent" />
+            <div
+              className="w-full bg-indigo-950/90 backdrop-blur-2xl border-t border-white/10 px-4 pt-4 pointer-events-auto shadow-[0_-10px_40px_rgba(0,0,0,0.5)]"
+              style={{ paddingBottom: 'max(1rem, env(safe-area-inset-bottom))' }}
+            >
+              <div className="max-w-2xl mx-auto pb-4">
+                {isHost ? (
+                  isLastRound ? (
+                    <motion.button
+                      onClick={handleFinalize}
+                      disabled={finalizing}
+                      whileHover={{ scale: 1.02 }}
+                      whileTap={{ scale: 0.98 }}
+                      className="w-full flex items-center justify-center gap-2 py-4 rounded-2xl font-black text-xl text-white border-b-4 border-rose-700 bg-gradient-to-r from-pink-500 to-rose-500 shadow-[0_8px_30px_rgba(244,63,94,0.4)] disabled:opacity-50 transition-shadow"
+                    >
+                      {finalizing ? 'Finalizing…' : <><Trophy size={22} /> Finalize Game</>}
+                    </motion.button>
+                  ) : (
+                    <motion.button
+                      onClick={handleStartNextRound}
+                      disabled={starting}
+                      whileHover={{ scale: 1.02 }}
+                      whileTap={{ scale: 0.98 }}
+                      className="w-full flex items-center justify-center gap-2 py-4 rounded-2xl font-black text-xl text-white border-b-4 border-blue-700 bg-gradient-to-r from-cyan-400 to-blue-500 shadow-[0_8px_30px_rgba(6,182,212,0.4)] disabled:opacity-50 transition-shadow"
+                    >
+                      {starting ? 'Starting…' : <>Next Round <ArrowRight size={24} /></>}
+                    </motion.button>
+                  )
+                ) : (
+                  <div className="flex items-center justify-center gap-3 bg-white/5 border border-white/10 rounded-2xl p-4 w-full">
+                    <div className="flex space-x-1">
+                      {[0, 1, 2].map((i) => (
+                        <span
+                          key={i}
+                          className="w-2 h-2 bg-cyan-400 rounded-full animate-bounce"
+                          style={{ animationDelay: `${i * 150}ms` }}
+                        />
+                      ))}
+                    </div>
+                    <span className="text-white/70 font-semibold text-lg">
+                      {isLastRound ? 'Waiting for the host to finalize…' : 'Waiting for Host...'}
+                    </span>
+                  </div>
+                )}
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
