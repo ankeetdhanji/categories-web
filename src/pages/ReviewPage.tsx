@@ -68,7 +68,9 @@ export default function ReviewPage() {
         console.error('getRoundResults failed:', err);
         setLoadError(err instanceof Error ? err.message : String(err));
       });
-  }, [gameId, roundToFetch]);
+  // reviewRoundNumber is set by LeaderboardUpdated (~2s after RoundEnded). Re-fetching when it
+  // arrives guarantees we read all auto-submitted answers that committed during the grace period.
+  }, [gameId, roundToFetch, reviewRoundNumber]);
 
   // Re-fetch review data on reconnect to restore category index and dispute state
   useEffect(() => {
