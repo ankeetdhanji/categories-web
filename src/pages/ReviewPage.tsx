@@ -44,6 +44,7 @@ export default function ReviewPage() {
   const [disputeProgress, setDisputeProgress] = useState<Record<string, { count: number; total: number }>>({});
   const [resolvedDisputes, setResolvedDisputes] = useState<Record<string, boolean>>({}); // disputeId → isValid
   const [showLeaderboard, setShowLeaderboard] = useState(false);
+  const [finalizing, setFinalizing] = useState(false);
   const [revealing, setRevealing] = useState(true);
   const [advancing, setAdvancing] = useState(false);
   const advancingRef = useRef(false);
@@ -152,8 +153,23 @@ export default function ReviewPage() {
   });
 
   // SignalR: all categories reviewed
-  useSignalREvent(HubEvents.ReviewComplete, () => {
-    setShowLeaderboard(true);
+  useSignalREvent(HubEvents.ReviewComplete, async () => {
+    const isLastRound = (roundToFetch ?? 0) === maxRounds;
+    if (isLastRound) {
+      setFinalizing(true);
+      if (isHost && gameId && playerId) {
+        try {
+          await api.finalizeGame(gameId, playerId);
+          // LeaderboardUpdated (roundNumber=-1) will fire and transition all clients
+        } catch {
+          setFinalizing(false);
+          setShowLeaderboard(true); // fallback: let host retry manually
+        }
+      }
+      // non-hosts just wait for LeaderboardUpdated with roundNumber=-1
+    } else {
+      setShowLeaderboard(true);
+    }
   });
 
   // SignalR: leaderboard update — either mid-round or final (roundNumber === -1)
@@ -275,6 +291,38 @@ export default function ReviewPage() {
 
   const uniqueCount = currentCategory.entries.filter((e) => e.isUnique && !e.isDisputed).length;
   const disputedCount = currentCategory.entries.filter((e) => e.isDisputed).length;
+
+  if (finalizing) {
+    return (
+      <div className="relative min-h-screen flex flex-col items-center justify-center px-4 gap-4">
+        <motion.div
+          className="pointer-events-none absolute rounded-full"
+          style={{ width: 500, height: 500, top: -100, right: -80, background: '#7c3aed', opacity: 0.25, filter: 'blur(120px)' }}
+          animate={{ scale: [1, 1.1, 1], opacity: [0.2, 0.25, 0.2] }}
+          transition={{ duration: 4, repeat: Infinity, ease: 'easeInOut' }}
+        />
+        <motion.div
+          className="pointer-events-none absolute rounded-full"
+          style={{ width: 500, height: 500, bottom: -100, left: -80, background: '#ec4899', opacity: 0.2, filter: 'blur(120px)' }}
+          animate={{ scale: [1, 1.15, 1], opacity: [0.15, 0.2, 0.15] }}
+          transition={{ duration: 5, repeat: Infinity, ease: 'easeInOut', delay: 1 }}
+        />
+        <div className="relative z-10 flex flex-col items-center gap-3">
+          <div className="flex gap-1">
+            {[0, 1, 2].map((i) => (
+              <span
+                key={i}
+                className="w-3 h-3 rounded-full bg-cyan-400 inline-block animate-bounce"
+                style={{ animationDelay: `${i * 150}ms` }}
+              />
+            ))}
+          </div>
+          <div className="text-white text-xl font-bold">Calculating final scores…</div>
+          <div className="text-white/60 text-sm">Get ready for the final results!</div>
+        </div>
+      </div>
+    );
+  }
 
   if (showLeaderboard) {
     return (
