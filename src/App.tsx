@@ -37,35 +37,17 @@ function GameRouter() {
   }
 }
 
-// Handles global SignalR events that must fire regardless of which page is active.
-function GlobalSignalRHandlers() {
-  const { playerId, players, setPlayers, setHost, removePlayer } = useGame();
+function useSyncGameState() {
+  const {
+    gameId, playerId, phase,
+    setPhase, setPlayers, setFullSettings,
+    setCurrentRound, clearSubmittedPlayers, addSubmittedPlayer,
+  } = useGame();
 
-  useSignalREvent(HubEvents.PlayerLeft, (data) => {
-    removePlayer((data as { playerId: string }).playerId);
-  });
-
-  useSignalREvent(HubEvents.HostChanged, (data) => {
-    const { hostPlayerId: newHostId } = data as { hostPlayerId: string };
-    setPlayers(players.map((p) => ({ ...p, isHost: p.id === newHostId })));
-    setHost(playerId === newHostId);
-  });
-
-  return null;
-}
-
-function ReconnectBanner() {
-  const { gameId, playerId, phase, setPhase, setPlayers, setFullSettings, setCurrentRound, clearSubmittedPlayers, addSubmittedPlayer } = useGame();
-  const { isReconnecting } = useConnectionStatus();
-  const wasReconnecting = useRef(false);
-
-  useEffect(() => {
-    const justReconnected = !isReconnecting && wasReconnecting.current;
-    wasReconnecting.current = isReconnecting;
-
-    if (!justReconnected || !gameId || phase === 'home') return;
-
-    api.getGame(gameId).then((game) => {
+  return async function syncGameState({ rejoinGroup = false } = {}) {
+    if (!gameId || phase === 'home') return;
+    try {
+      const game = await api.getGame(gameId);
       setPlayers(
         game.players.map((p) => ({
           id: p.id,
@@ -77,11 +59,8 @@ function ReconnectBanner() {
         })),
       );
       setFullSettings(game.settings);
-
       const targetPhase = STATUS_TO_PHASE[game.status] ?? 'home';
       if (targetPhase !== phase) setPhase(targetPhase);
-
-      // Resync current round info if in an active round
       if (game.status === 2 && game.currentRoundIndex >= 0) {
         const r = game.rounds[game.currentRoundIndex];
         if (r) {
@@ -92,22 +71,58 @@ function ReconnectBanner() {
             startedAt: r.startedAt,
             endsAt: r.endedAt,
           });
-          // Hydrate submitted players for mid-round recovery
           const submitted = Object.entries(r.answers ?? {})
             .filter(([, a]) => a.isSubmitted)
             .map(([id]) => id);
           const done = r.donePlayerIds ?? [];
-          const allSubmitted = [...new Set([...submitted, ...done])];
           clearSubmittedPlayers();
-          allSubmitted.forEach(addSubmittedPlayer);
+          [...new Set([...submitted, ...done])].forEach(addSubmittedPlayer);
         }
       }
-
-      // Re-join SignalR group with the new connectionId after automatic reconnect
-      if (playerId) {
+      if (rejoinGroup && playerId) {
         joinGameGroup(gameId, playerId).catch(console.error);
       }
-    }).catch(console.error);
+    } catch (e) {
+      console.error('[syncGameState] failed', e);
+    }
+  };
+}
+
+// Handles global SignalR events that must fire regardless of which page is active.
+function GlobalSignalRHandlers() {
+  const { playerId, players, setPlayers, setHost, removePlayer } = useGame();
+  const syncGameState = useSyncGameState();
+
+  useSignalREvent(HubEvents.PlayerLeft, (data) => {
+    removePlayer((data as { playerId: string }).playerId);
+  });
+
+  useSignalREvent(HubEvents.HostChanged, (data) => {
+    const { hostPlayerId: newHostId } = data as { hostPlayerId: string };
+    setPlayers(players.map((p) => ({ ...p, isHost: p.id === newHostId })));
+    setHost(playerId === newHostId);
+  });
+
+  useSignalREvent(HubEvents.GameStateSync, () => {
+    syncGameState();
+  });
+
+  return null;
+}
+
+function ReconnectBanner() {
+  const { gameId, phase } = useGame();
+  const { isReconnecting } = useConnectionStatus();
+  const wasReconnecting = useRef(false);
+  const syncGameState = useSyncGameState();
+
+  useEffect(() => {
+    const justReconnected = !isReconnecting && wasReconnecting.current;
+    wasReconnecting.current = isReconnecting;
+
+    if (!justReconnected || !gameId || phase === 'home') return;
+
+    syncGameState({ rejoinGroup: true });
   }, [isReconnecting]); // eslint-disable-line react-hooks/exhaustive-deps
 
   if (!isReconnecting) return null;
