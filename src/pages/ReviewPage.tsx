@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
+import { Clock, ArrowLeft, ArrowRight, Check, X, AlertTriangle, Heart, Flame, Sparkles, CheckCircle2 } from 'lucide-react';
 import { useGame, type GamePhase, type RoundInfo } from '../context/GameContext';
 import { useSignalREvent } from '../hooks/useSignalR';
 import { api, type RoundReviewResult, type AnswerEntry, type LeaderboardEntry, type FinalLeaderboardEntry } from '../services/api';
@@ -244,16 +245,13 @@ export default function ReviewPage() {
 
   if (loadError) {
     return (
-      <div
-        className="flex flex-col items-center justify-center gap-3 min-h-screen"
-        style={{ color: '#ef4444' }}
-      >
+      <div className="flex flex-col items-center justify-center gap-3 min-h-screen text-red-400">
         <span className="font-bold text-sm">Failed to load results</span>
-        <span className="text-xs font-mono max-w-sm text-center" style={{ color: '#9ca3af' }}>{loadError}</span>
+        <span className="text-xs font-mono max-w-sm text-center text-gray-400">{loadError}</span>
         <button
           onClick={() => { setLoadError(null); if (gameId && roundToFetch) api.getRoundResults(gameId, roundToFetch).then(setResults).catch((e: unknown) => setLoadError(e instanceof Error ? e.message : String(e))); }}
-          className="mt-2 px-4 py-2 rounded-lg text-xs font-bold"
-          style={{ background: 'rgba(30,26,77,0.8)', border: '1px solid rgba(255,255,255,0.1)', color: '#e5e7eb' }}
+          className="mt-2 px-4 py-2 rounded-lg text-xs font-bold text-gray-200"
+          style={{ background: 'rgba(30,26,77,0.8)', border: '1px solid rgba(255,255,255,0.1)' }}
         >
           Retry
         </button>
@@ -263,10 +261,7 @@ export default function ReviewPage() {
 
   if (!results) {
     return (
-      <div
-        className="flex items-center justify-center min-h-screen"
-        style={{ color: '#9ca3af' }}
-      >
+      <div className="flex items-center justify-center min-h-screen text-gray-400">
         Loading results…
       </div>
     );
@@ -297,32 +292,45 @@ export default function ReviewPage() {
   }
 
   return (
-    <div className="relative min-h-screen flex flex-col overflow-hidden" style={{ color: '#e5e7eb' }}>
-      {/* Background blobs */}
-      <div
+    <div className="relative min-h-screen flex flex-col overflow-hidden text-gray-200 pb-32">
+      {/* Animated background blobs */}
+      <motion.div
         className="pointer-events-none absolute rounded-full"
         style={{ width: 500, height: 500, top: -100, right: -80, background: '#7c3aed', opacity: 0.25, filter: 'blur(120px)' }}
+        animate={{ scale: [1, 1.1, 1], opacity: [0.2, 0.25, 0.2] }}
+        transition={{ duration: 4, repeat: Infinity, ease: 'easeInOut' }}
       />
-      <div
+      <motion.div
         className="pointer-events-none absolute rounded-full"
-        style={{ width: 500, height: 500, bottom: -100, left: -80, background: '#ec4899', opacity: 0.2, filter: 'blur(120px)' }}
+        style={{ width: 500, height: 500, bottom: -100, left: -80, background: '#1d4ed8', opacity: 0.15, filter: 'blur(120px)' }}
+        animate={{ scale: [1, 1.2, 1], opacity: [0.1, 0.15, 0.1] }}
+        transition={{ duration: 5, repeat: Infinity, ease: 'easeInOut', delay: 1 }}
       />
-
-      {/* Header */}
-      <header
-        className="sticky top-0 z-20 flex items-center justify-between px-4 md:px-6 h-16"
-        style={{ background: 'rgba(30,26,77,0.8)', backdropFilter: 'blur(12px)', borderBottom: '1px solid rgba(255,255,255,0.1)' }}
+      {/* Ambient sparkles */}
+      <motion.div
+        className="pointer-events-none fixed top-20 left-10 text-yellow-300 opacity-40"
+        animate={{ y: [0, -15, 0], scale: [1, 1.2, 1] }}
+        transition={{ duration: 3, repeat: Infinity, ease: 'easeInOut' }}
       >
+        <Sparkles size={24} />
+      </motion.div>
+      <motion.div
+        className="pointer-events-none fixed top-40 right-12 text-cyan-300 opacity-30"
+        animate={{ y: [0, 20, 0], scale: [1, 0.8, 1] }}
+        transition={{ duration: 4, repeat: Infinity, ease: 'easeInOut', delay: 1 }}
+      >
+        <Sparkles size={16} />
+      </motion.div>
+
+      {/* Sticky header */}
+      <header className="sticky top-0 z-20 flex items-center justify-between px-4 md:px-6 h-16 bg-black/30 backdrop-blur-xl border-b border-white/10">
         {/* Left: round review pill */}
         <div className="flex items-center gap-2" style={{ flex: '1 0 0' }}>
-          <div
-            className="flex items-center gap-1.5 px-3 py-1 rounded-full"
-            style={{ background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.15)' }}
-          >
-            <span style={{ fontSize: 14 }}>🔥</span>
+          <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/10 border border-white/15">
+            <Flame size={14} className="text-cyan-400" />
             <span className="font-bold text-xs text-white tracking-wide">Round {roundNumber} Review</span>
           </div>
-          <span className="hidden md:block text-xs" style={{ color: 'rgba(255,255,255,0.5)' }}>
+          <span className="hidden md:block text-xs text-white/50">
             Round {roundNumber} of {maxRounds}
           </span>
         </div>
@@ -330,7 +338,7 @@ export default function ReviewPage() {
         {/* Center: letter badge */}
         <div className="flex justify-center" style={{ flex: '1 0 0' }}>
           <div
-            className="flex items-center justify-center rounded-xl font-black text-2xl rotate-3 shrink-0"
+            className="flex items-center justify-center rounded-xl font-black text-2xl rotate-3 shrink-0 shadow-lg border border-white/20"
             style={{
               width: 44,
               height: 44,
@@ -344,12 +352,12 @@ export default function ReviewPage() {
         </div>
 
         {/* Right: countdown */}
-        <div style={{ flex: '1 0 0', display: 'flex', justifyContent: 'flex-end' }}>
+        <div className="flex justify-end" style={{ flex: '1 0 0' }}>
           <div
-            className="flex items-center gap-1.5 px-3 py-1 rounded-full font-bold text-sm"
-            style={{ background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.15)', color: secondsLeft <= 10 ? '#ef4444' : '#e5e7eb' }}
+            className="flex items-center gap-1.5 px-3 py-1 rounded-full font-bold text-sm bg-white/10 border border-white/15"
+            style={{ color: secondsLeft <= 10 ? '#ef4444' : '#e5e7eb' }}
           >
-            <ClockIcon />
+            <Clock size={14} />
             <span>{secondsLeft}s</span>
           </div>
         </div>
@@ -359,30 +367,30 @@ export default function ReviewPage() {
       <div className="flex gap-2 justify-center py-3 z-10 relative">
         {categories.map((_, i) => {
           if (i < categoryIndex) {
-            return <div key={i} className="rounded-full" style={{ width: 8, height: 8, background: 'rgba(255,255,255,0.4)' }} />;
+            return <div key={i} className="w-2 h-2 rounded-full bg-white/40" />;
           } else if (i === categoryIndex) {
             return (
               <div
                 key={i}
-                className="rounded-full"
-                style={{ width: 24, height: 8, background: '#22d3ee', boxShadow: '0 0 8px rgba(34,211,238,0.6)' }}
+                className="h-2 rounded-full bg-cyan-400"
+                style={{ width: 24, boxShadow: '0 0 8px rgba(34,211,238,0.6)' }}
               />
             );
           } else {
-            return <div key={i} className="rounded-full" style={{ width: 8, height: 8, background: 'rgba(255,255,255,0.1)' }} />;
+            return <div key={i} className="w-2 h-2 rounded-full bg-white/10" />;
           }
         })}
       </div>
 
       {/* Main content */}
-      <main className="relative z-10 flex-1 flex flex-col items-center px-4 pt-4 pb-32 max-w-2xl mx-auto w-full">
+      <main className="relative z-10 flex-1 flex flex-col items-center px-4 pt-4 max-w-2xl mx-auto w-full">
         <AnimatePresence mode="wait">
           <motion.div
             key={categoryIndex}
-            initial={{ opacity: 0, scale: 0.95, y: 8 }}
-            animate={{ opacity: 1, scale: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 1.03, y: -8 }}
-            transition={{ duration: 0.25 }}
+            initial={{ opacity: 0, scale: 0.95, filter: 'blur(10px)' }}
+            animate={{ opacity: 1, scale: 1, filter: 'blur(0px)' }}
+            exit={{ opacity: 0, scale: 1.05, filter: 'blur(10px)' }}
+            transition={{ duration: 0.4 }}
             className="w-full flex-1 flex flex-col justify-center relative"
             style={{ minHeight: 400 }}
           >
@@ -404,15 +412,14 @@ export default function ReviewPage() {
                 </motion.h2>
               </div>
             ) : (
-              /* Phase 2 — card slides up, title animates from center into header */
+              /* Phase 2 — card slides up */
               <motion.div
                 initial={{ opacity: 0, y: 60 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.5, type: 'spring', bounce: 0 }}
-                className="rounded-[2rem] overflow-hidden w-full"
-                style={{ background: 'rgba(0,0,0,0.4)', backdropFilter: 'blur(24px)', border: '1px solid rgba(255,255,255,0.1)', boxShadow: '0 15px 40px rgba(0,0,0,0.4)' }}
+                className="rounded-[2rem] overflow-hidden w-full bg-black/40 backdrop-blur-xl border border-white/10 shadow-[0_15px_40px_rgba(0,0,0,0.4)]"
               >
-                {/* Card header — title flies in from center via layoutId */}
+                {/* Card header */}
                 <div
                   className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 px-6 py-5"
                   style={{ background: 'linear-gradient(to bottom, rgba(255,255,255,0.1), transparent)', borderBottom: '1px solid rgba(255,255,255,0.1)', minHeight: 88 }}
@@ -431,24 +438,22 @@ export default function ReviewPage() {
                     className="flex items-center gap-2"
                   >
                     {uniqueCount > 0 && (
-                      <span className="text-cyan-400 text-[10px] font-bold px-2.5 py-1 rounded-md flex items-center gap-1"
-                        style={{ background: 'rgba(34,211,238,0.1)', border: '1px solid rgba(34,211,238,0.2)' }}>
-                        ✓ {uniqueCount} Unique
+                      <span className="text-cyan-400 text-[10px] font-bold px-2.5 py-1 rounded-md flex items-center gap-1 bg-cyan-500/10 border border-cyan-500/20">
+                        <CheckCircle2 size={12} /> {uniqueCount} Unique
                       </span>
                     )}
                     {disputedCount > 0 && (
-                      <span className="text-orange-400 text-[10px] font-bold px-2.5 py-1 rounded-md flex items-center gap-1 animate-pulse"
-                        style={{ background: 'rgba(249,115,22,0.1)', border: '1px solid rgba(249,115,22,0.2)' }}>
-                        ⚠ {disputedCount} Disputed
+                      <span className="text-orange-400 text-[10px] font-bold px-2.5 py-1 rounded-md flex items-center gap-1 bg-orange-500/10 border border-orange-500/20 animate-pulse">
+                        <AlertTriangle size={12} /> {disputedCount} Disputed
                       </span>
                     )}
                   </motion.div>
                 </div>
 
-                {/* Answer rows — stagger in with listVariants */}
+                {/* Answer rows */}
                 {currentCategory.entries.length === 0 ? (
                   <div className="flex items-center justify-center py-12">
-                    <span className="text-sm" style={{ color: 'rgba(255,255,255,0.4)' }}>No answers submitted</span>
+                    <span className="text-sm text-white/40">No answers submitted</span>
                   </div>
                 ) : (
                   <motion.div
@@ -471,7 +476,6 @@ export default function ReviewPage() {
                           myVote={entry.disputeId ? myDisputeVotes[entry.disputeId] : undefined}
                           progress={entry.disputeId ? disputeProgress[entry.disputeId] : undefined}
                           resolved={entry.disputeId ? resolvedDisputes[entry.disputeId] : undefined}
-                          isLast={i === currentCategory.entries.length - 1}
                           onLike={handleLike}
                           onDisputeVote={handleDisputeVote}
                         />
@@ -487,18 +491,18 @@ export default function ReviewPage() {
         {/* Like hint */}
         {!revealing && (
           <div className="flex items-center gap-2 mt-4 opacity-70">
-            <HeartIcon filled={false} color="rgba(255,255,255,0.5)" size={16} />
-            <span className="text-sm" style={{ color: 'rgba(255,255,255,0.5)' }}>Pick the best answer for this category (1 vote)</span>
+            <Heart size={16} className="text-white/50" />
+            <span className="text-sm text-white/50">Pick the best answer for this category (1 vote)</span>
           </div>
         )}
       </main>
 
-      {/* Bottom fade + bar — matches mock exactly */}
+      {/* Bottom fade + bar */}
       <div className="fixed bottom-0 left-0 right-0 z-50 pointer-events-none flex justify-center">
         <div className="absolute bottom-full left-0 w-full h-32" style={{ background: 'linear-gradient(to top, #0e0b2e, rgba(14,11,46,0.9), transparent)' }} />
         <div
-          className="w-full pointer-events-auto"
-          style={{ background: 'rgba(14,11,46,0.9)', backdropFilter: 'blur(24px)', borderTop: '1px solid rgba(255,255,255,0.1)', boxShadow: '0 -10px 40px rgba(0,0,0,0.5)' }}
+          className="w-full pointer-events-auto backdrop-blur-2xl border-t border-white/10"
+          style={{ background: 'rgba(14,11,46,0.9)', boxShadow: '0 -10px 40px rgba(0,0,0,0.5)' }}
         >
           <div className="max-w-2xl mx-auto px-4 pt-4" style={{ paddingBottom: 'max(1rem, env(safe-area-inset-bottom))' }}>
             {isHost ? (
@@ -508,49 +512,41 @@ export default function ReviewPage() {
                   whileTap={categoryIndex > 0 ? { scale: 0.95 } : {}}
                   onClick={() => { if (categoryIndex > 0) setCategoryIndex(categoryIndex - 1); }}
                   disabled={categoryIndex === 0}
-                  className="flex items-center justify-center rounded-2xl transition-all"
-                  style={{
-                    width: 56, height: 56, flexShrink: 0,
-                    background: categoryIndex === 0 ? 'rgba(255,255,255,0.05)' : 'rgba(255,255,255,0.1)',
-                    color: categoryIndex === 0 ? 'rgba(255,255,255,0.2)' : '#fff',
-                    cursor: categoryIndex === 0 ? 'not-allowed' : 'pointer',
-                  }}
+                  className={`p-4 rounded-2xl flex items-center justify-center transition-all ${
+                    categoryIndex === 0
+                      ? 'bg-white/5 text-white/20 cursor-not-allowed'
+                      : 'bg-white/10 text-white hover:bg-white/20'
+                  }`}
                 >
-                  <ChevronLeftIcon />
+                  <ArrowLeft size={24} />
                 </motion.button>
                 <motion.button
                   whileHover={{ scale: 1.02 }}
                   whileTap={{ scale: 0.98 }}
                   onClick={handleAdvance}
                   disabled={advancing}
-                  className="flex-1 flex items-center justify-center gap-2 rounded-2xl font-black text-xl text-white transition-all disabled:opacity-50"
-                  style={categoryIndex >= totalCategories - 1 ? {
-                    height: 56,
-                    background: 'linear-gradient(to right, #ec4899, #f43f5e)',
-                    borderBottom: '4px solid #9f1239',
-                    boxShadow: '0 4px 20px rgba(244,63,94,0.4)',
-                  } : {
-                    height: 56,
-                    background: 'linear-gradient(to right, #22d3ee, #3b82f6)',
-                    borderBottom: '4px solid #1d4ed8',
-                    boxShadow: '0 4px 20px rgba(6,182,212,0.4)',
-                  }}
+                  className={`flex-1 flex items-center justify-center gap-2 py-4 rounded-2xl font-black text-xl transition-all disabled:opacity-50 relative overflow-hidden group shadow-lg hover:shadow-2xl
+                    ${categoryIndex >= totalCategories - 1
+                      ? 'bg-gradient-to-r from-pink-500 to-rose-500 border-b-4 border-rose-700 shadow-[0_4px_20px_rgba(244,63,94,0.4)]'
+                      : 'bg-gradient-to-r from-cyan-400 to-blue-500 border-b-4 border-blue-700 shadow-[0_4px_20px_rgba(6,182,212,0.4)]'
+                    }
+                    text-white`}
                 >
-                  {advancing ? 'Advancing…' : categoryIndex >= totalCategories - 1 ? 'Finish Review' : 'Next Category'}
-                  <SkipForwardIcon />
+                  <div className="absolute inset-0 bg-white/20 translate-y-full group-hover:translate-y-0 transition-transform duration-300" />
+                  <span className="relative z-10">
+                    {advancing ? 'Advancing…' : categoryIndex >= totalCategories - 1 ? 'Finish Review' : 'Next Category'}
+                  </span>
+                  <ArrowRight size={24} className="relative z-10" />
                 </motion.button>
               </div>
             ) : (
-              <div
-                className="flex items-center justify-center gap-3 rounded-2xl p-4 w-full"
-                style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)' }}
-              >
+              <div className="flex items-center justify-center gap-3 bg-white/5 border border-white/10 rounded-2xl p-4 w-full">
                 <div className="flex gap-1">
-                  {[0, 1, 2].map(i => (
+                  {[0, 1, 2].map((i) => (
                     <span
                       key={i}
-                      className="w-2 h-2 rounded-full bg-cyan-400"
-                      style={{ display: 'inline-block', animation: `bounceDot 1.2s ease-in-out ${i * 150}ms infinite` }}
+                      className="w-2 h-2 rounded-full bg-cyan-400 inline-block animate-bounce"
+                      style={{ animationDelay: `${i * 150}ms` }}
                     />
                   ))}
                 </div>
@@ -575,84 +571,55 @@ interface AnswerRowProps {
   myVote: boolean | null | undefined;
   progress: { count: number; total: number } | undefined;
   resolved: boolean | undefined;
-  isLast: boolean;
   onLike: (category: string, normalizedAnswer: string) => void;
   onDisputeVote: (entry: AnswerEntry, isValid: boolean) => void;
 }
 
-function AnswerRow({ entry, category, playerId, myLike, myVote, progress, resolved, isLast, onLike, onDisputeVote }: AnswerRowProps) {
+function AnswerRow({ entry, category, playerId, myLike, myVote, progress, resolved, onLike, onDisputeVote }: AnswerRowProps) {
   const isOwnAnswer = entry.players.some((p) => p.id === playerId);
-  const isAuthor = isOwnAnswer; // author cannot vote on their own dispute
+  const isAuthor = isOwnAnswer;
   const hasLiked = myLike === entry.normalizedAnswer;
   const hasVoted = myVote !== undefined && myVote !== null;
 
-  // Determine row styling
-  let rowStyle: React.CSSProperties = {
-    borderBottom: isLast ? 'none' : '1px solid rgba(255,255,255,0.06)',
-  };
-  let textStyle: React.CSSProperties = {};
+  // Determine card class + text decoration based on status
+  let cardClass = 'rounded-2xl px-4 py-3 flex items-center justify-between';
+  let textDecoration = '';
 
   if (entry.isDisputed && resolved === false) {
-    // Invalid
-    rowStyle = {
-      ...rowStyle,
-      background: 'rgba(127,29,29,0.2)',
-      borderLeft: '4px solid #dc2626',
-      opacity: 0.7,
-    };
-    textStyle = { textDecoration: 'line-through' };
+    cardClass += ' bg-red-950/30 border border-red-900/50 opacity-70';
+    textDecoration = 'line-through';
   } else if (entry.isDisputed && resolved === true) {
-    // Valid (resolved)
-    rowStyle = {
-      ...rowStyle,
-      background: 'rgba(20,83,45,0.2)',
-      borderLeft: '4px solid #22c55e',
-    };
+    cardClass += ' bg-emerald-950/20 border border-emerald-800/30';
   } else if (entry.isDisputed) {
-    // Still being disputed
-    rowStyle = {
-      ...rowStyle,
-      background: 'rgba(67,20,7,0.3)',
-      borderLeft: '4px solid #f97316',
-      animation: 'disputePulse 2s ease-in-out infinite',
-    };
+    cardClass += ' bg-orange-950/40 border border-orange-500/50 shadow-[0_0_15px_rgba(249,115,22,0.15)] relative overflow-hidden';
   } else if (entry.isUnique) {
-    // Unique
-    rowStyle = {
-      ...rowStyle,
-      background: 'rgba(8,51,68,0.2)',
-      borderLeft: '4px solid #06b6d4',
-    };
+    cardClass += ' bg-cyan-950/20 border border-cyan-800/30 shadow-[0_2px_10px_rgba(8,145,178,0.1)]';
   } else {
-    // Shared/duplicate
-    rowStyle = {
-      ...rowStyle,
-      background: 'rgba(59,7,100,0.2)',
-      borderLeft: '4px solid rgba(168,85,247,0.4)',
-    };
+    // shared
+    cardClass += ' bg-purple-900/30 border border-purple-500/30 relative overflow-hidden';
   }
 
   return (
-    <div
-      className="flex items-center justify-between px-5 py-4"
-      style={{ minHeight: 90, ...rowStyle }}
-    >
+    <div className={cardClass} style={{ minHeight: 80 }}>
+      {/* Disputed pulse overlay */}
+      {entry.isDisputed && resolved === undefined && (
+        <div className="absolute inset-0 bg-orange-500/10 animate-pulse pointer-events-none" />
+      )}
+      {/* Shared right accent bar */}
+      {!entry.isDisputed && !entry.isUnique && (
+        <div className="absolute right-0 top-0 bottom-0 w-1.5 bg-purple-500/50 pointer-events-none" />
+      )}
+
       {/* Left: answer info */}
-      <div className="flex flex-col gap-2 flex-1 min-w-0">
+      <div className="flex flex-col gap-2 flex-1 min-w-0 relative z-10">
         {/* Answer text + badge */}
         <div className="flex items-center gap-3 flex-wrap">
-          <span className="font-bold text-xl text-white" style={textStyle}>
+          <span className="font-bold text-xl text-white" style={{ textDecoration: textDecoration || undefined }}>
             {entry.rawAnswer}
           </span>
-          {entry.isDisputed && resolved === undefined && (
-            <Badge type="disputed" />
-          )}
-          {entry.isDisputed && resolved === true && (
-            <Badge type="valid" />
-          )}
-          {entry.isDisputed && resolved === false && (
-            <Badge type="invalid" />
-          )}
+          {entry.isDisputed && resolved === undefined && <Badge type="disputed" />}
+          {entry.isDisputed && resolved === true && <Badge type="valid" />}
+          {entry.isDisputed && resolved === false && <Badge type="invalid" />}
           {!entry.isDisputed && entry.isUnique && <Badge type="unique" />}
           {!entry.isDisputed && entry.isShared && <Badge type="shared" />}
         </div>
@@ -664,11 +631,10 @@ function AnswerRow({ entry, category, playerId, myLike, myVote, progress, resolv
               <div
                 key={p.id}
                 title={p.displayName}
-                className="flex items-center justify-center rounded-full font-bold text-[10px]"
+                className="flex items-center justify-center rounded-full font-bold text-[10px] ring-1 ring-black/30"
                 style={{
                   width: 24, height: 24,
                   background: avatarColor(p.id),
-                  border: '1px solid rgba(0,0,0,0.3)',
                   marginLeft: i > 0 ? -8 : 0,
                   color: '#0b0f14',
                   zIndex: entry.players.length - i,
@@ -679,14 +645,14 @@ function AnswerRow({ entry, category, playerId, myLike, myVote, progress, resolv
               </div>
             ))}
           </div>
-          <span className="text-xs" style={{ color: 'rgba(255,255,255,0.4)' }}>
+          <span className="text-xs text-white/40">
             {entry.players.map((p) => p.displayName).join(', ')}
           </span>
         </div>
       </div>
 
       {/* Right: action area */}
-      <div className="flex items-center justify-end shrink-0 ml-3 min-w-[130px] md:min-w-[200px]">
+      <div className="flex items-center justify-end shrink-0 ml-3 min-w-[130px] md:min-w-[200px] relative z-10">
         {entry.isDisputed && !isAuthor ? (
           <DisputeActions
             entry={entry}
@@ -698,25 +664,24 @@ function AnswerRow({ entry, category, playerId, myLike, myVote, progress, resolv
           />
         ) : entry.isDisputed && isAuthor ? (
           <div className="flex flex-col items-end gap-1">
-            <span className="text-xs italic" style={{ color: 'rgba(255,255,255,0.4)' }}>Your answer</span>
+            <span className="text-xs italic text-white/40">Your answer</span>
             {progress && (
-              <span className="text-xs font-mono" style={{ color: 'rgba(255,255,255,0.4)' }}>{progress.count}/{progress.total} voted</span>
+              <span className="text-xs font-mono text-white/40">{progress.count}/{progress.total} voted</span>
             )}
           </div>
         ) : isOwnAnswer ? (
-          <span className="text-xs italic" style={{ color: 'rgba(255,255,255,0.4)' }}>Can't vote</span>
+          <span className="text-xs italic text-white/40">Can't vote</span>
         ) : (
           <button
             onClick={() => onLike(category, entry.normalizedAnswer)}
-            className="flex items-center justify-center rounded-full transition-all"
+            className="flex items-center justify-center rounded-full transition-all w-11 h-11"
             style={{
-              width: 44, height: 44,
               background: hasLiked ? 'rgba(236,72,153,0.15)' : 'rgba(255,255,255,0.08)',
               border: `1px solid ${hasLiked ? '#ec4899' : 'rgba(255,255,255,0.15)'}`,
             }}
             title="Like this answer"
           >
-            <HeartIcon filled={hasLiked} color={hasLiked ? '#ec4899' : 'rgba(255,255,255,0.5)'} size={18} />
+            <Heart size={18} fill={hasLiked ? '#ec4899' : 'none'} color={hasLiked ? '#ec4899' : 'rgba(255,255,255,0.5)'} />
           </button>
         )}
       </div>
@@ -744,33 +709,23 @@ function DisputeActions({ entry, myVote, hasVoted, progress, resolved, onVote }:
             <button
               onClick={() => onVote(entry, true)}
               disabled={hasVoted}
-              className="flex items-center gap-1 px-3 rounded-[10px] font-bold text-xs transition-opacity disabled:opacity-50"
-              style={{
-                height: 38,
-                border: '1px solid rgba(34,197,94,0.3)',
-                color: '#22c55e',
-                background: myVote === true ? 'rgba(34,197,94,0.1)' : 'transparent',
-              }}
+              className="flex items-center gap-1 px-3 rounded-[10px] font-bold text-xs h-[38px] transition-opacity disabled:opacity-50 border border-green-500/30 text-green-400"
+              style={{ background: myVote === true ? 'rgba(34,197,94,0.1)' : 'transparent' }}
             >
-              <CheckIcon /> Valid
+              <Check size={12} /> Valid
             </button>
             <button
               onClick={() => onVote(entry, false)}
               disabled={hasVoted}
-              className="flex items-center gap-1 px-3 rounded-[10px] font-bold text-xs transition-opacity disabled:opacity-50"
-              style={{
-                height: 38,
-                border: '1px solid rgba(239,68,68,0.3)',
-                color: '#ef4444',
-                background: myVote === false ? 'rgba(239,68,68,0.1)' : 'transparent',
-              }}
+              className="flex items-center gap-1 px-3 rounded-[10px] font-bold text-xs h-[38px] transition-opacity disabled:opacity-50 border border-red-500/30 text-red-400"
+              style={{ background: myVote === false ? 'rgba(239,68,68,0.1)' : 'transparent' }}
             >
-              <XIcon /> Invalid
+              <X size={12} /> Invalid
             </button>
           </div>
-          <span className="text-[10px] italic" style={{ color: 'rgba(255,255,255,0.4)' }}>Quick vote — anonymous</span>
+          <span className="text-[10px] italic text-white/40">Quick vote — anonymous</span>
           {progress && (
-            <span className="text-[10px] font-mono" style={{ color: 'rgba(255,255,255,0.4)' }}>{progress.count}/{progress.total} voted</span>
+            <span className="text-[10px] font-mono text-white/40">{progress.count}/{progress.total} voted</span>
           )}
         </>
       ) : (
@@ -824,21 +779,25 @@ function LeaderboardView({ leaderboard, roundNumber, maxRounds, isHost, gameId, 
   return (
     <div className="relative min-h-screen flex flex-col items-center justify-center px-4 py-12 overflow-hidden">
       {/* Background blobs */}
-      <div
+      <motion.div
         className="pointer-events-none absolute rounded-full"
         style={{ width: 500, height: 500, top: -100, right: -80, background: '#7c3aed', opacity: 0.25, filter: 'blur(120px)' }}
+        animate={{ scale: [1, 1.1, 1], opacity: [0.2, 0.25, 0.2] }}
+        transition={{ duration: 4, repeat: Infinity, ease: 'easeInOut' }}
       />
-      <div
+      <motion.div
         className="pointer-events-none absolute rounded-full"
         style={{ width: 500, height: 500, bottom: -100, left: -80, background: '#ec4899', opacity: 0.2, filter: 'blur(120px)' }}
+        animate={{ scale: [1, 1.15, 1], opacity: [0.15, 0.2, 0.15] }}
+        transition={{ duration: 5, repeat: Infinity, ease: 'easeInOut', delay: 1 }}
       />
 
       <div className="relative z-10 w-full max-w-lg flex flex-col gap-6">
         {/* Header section */}
         <div className="flex flex-col items-center gap-3">
           <div
-            className="flex items-center gap-2 px-4 py-1.5 rounded-full font-bold text-sm"
-            style={{ background: 'linear-gradient(135deg, rgba(245,158,11,0.2) 0%, rgba(249,115,22,0.2) 100%)', border: '1px solid rgba(245,158,11,0.3)', color: '#fbbf24' }}
+            className="flex items-center gap-2 px-4 py-1.5 rounded-full font-bold text-sm text-yellow-400"
+            style={{ background: 'linear-gradient(135deg, rgba(245,158,11,0.2) 0%, rgba(249,115,22,0.2) 100%)', border: '1px solid rgba(245,158,11,0.3)' }}
           >
             <span>🏆</span>
             <span>Round {roundNumber} Results</span>
@@ -846,7 +805,7 @@ function LeaderboardView({ leaderboard, roundNumber, maxRounds, isHost, gameId, 
           <h2 className="font-bold text-4xl tracking-tight text-white" style={{ letterSpacing: '-0.7px' }}>
             Leaderboard
           </h2>
-          <span className="text-sm" style={{ color: 'rgba(255,255,255,0.5)' }}>Round {roundNumber} of {maxRounds}</span>
+          <span className="text-sm text-white/50">Round {roundNumber} of {maxRounds}</span>
         </div>
 
         {/* Player list */}
@@ -874,54 +833,49 @@ function LeaderboardView({ leaderboard, roundNumber, maxRounds, isHost, gameId, 
               <span className="flex-1 font-semibold text-white">{entry.displayName}</span>
               <div className="flex flex-col items-end gap-1">
                 <span className="font-bold text-base text-white">{entry.totalScore}</span>
-                <span
-                  className="text-xs px-2 py-0.5 rounded-full font-bold"
-                  style={{ background: 'rgba(34,211,238,0.2)', border: '1px solid rgba(34,211,238,0.3)', color: '#67e8f9' }}
-                >
+                <span className="text-xs px-2 py-0.5 rounded-full font-bold bg-cyan-500/20 border border-cyan-500/30 text-cyan-300">
                   +{entry.roundScore} pts
                 </span>
               </div>
             </motion.div>
           ))}
           {leaderboard.length === 0 && (
-            <div className="flex items-center justify-center py-8 rounded-2xl" style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)' }}>
-              <span className="text-sm" style={{ color: 'rgba(255,255,255,0.4)' }}>No scores yet</span>
+            <div className="flex items-center justify-center py-8 rounded-2xl bg-white/5 border border-white/10">
+              <span className="text-sm text-white/40">No scores yet</span>
             </div>
           )}
         </div>
 
         {/* Bottom bar — host buttons */}
         {isHost && isLastRound ? (
-          <button
+          <motion.button
             onClick={handleFinalize}
             disabled={finalizing}
-            className="w-full h-14 rounded-[14px] font-bold text-lg flex items-center justify-center gap-2 transition-all disabled:opacity-50"
-            style={{
-              background: 'linear-gradient(135deg, #ec4899 0%, #f43f5e 100%)',
-              color: '#fff',
-              boxShadow: '0 0 20px rgba(236,72,153,0.4)',
-            }}
+            whileHover={{ scale: 1.02 }}
+            whileTap={{ scale: 0.98 }}
+            className="w-full h-14 rounded-[14px] font-bold text-lg flex items-center justify-center gap-2 transition-all disabled:opacity-50 text-white relative overflow-hidden group"
+            style={{ background: 'linear-gradient(135deg, #ec4899 0%, #f43f5e 100%)', boxShadow: '0 0 20px rgba(236,72,153,0.4)' }}
           >
-            {finalizing ? 'Finalizing…' : '🏆 Finalize Game'}
-          </button>
+            <div className="absolute inset-0 bg-white/20 translate-y-full group-hover:translate-y-0 transition-transform duration-300" />
+            <span className="relative z-10">{finalizing ? 'Finalizing…' : '🏆 Finalize Game'}</span>
+          </motion.button>
         ) : isHost ? (
-          <button
+          <motion.button
             onClick={handleStartNextRound}
             disabled={starting}
-            className="w-full h-14 rounded-[14px] font-bold text-lg flex items-center justify-center gap-2 transition-all disabled:opacity-50"
-            style={{
-              background: 'linear-gradient(135deg, #22d3ee 0%, #3b82f6 100%)',
-              color: '#0b0f14',
-              boxShadow: '0 0 20px rgba(34,211,238,0.3)',
-            }}
+            whileHover={{ scale: 1.02 }}
+            whileTap={{ scale: 0.98 }}
+            className="w-full h-14 rounded-[14px] font-bold text-lg flex items-center justify-center gap-2 transition-all disabled:opacity-50 relative overflow-hidden group"
+            style={{ background: 'linear-gradient(135deg, #22d3ee 0%, #3b82f6 100%)', color: '#0b0f14', boxShadow: '0 0 20px rgba(34,211,238,0.3)' }}
           >
-            {starting ? 'Starting…' : 'Start Next Round →'}
-          </button>
+            <div className="absolute inset-0 bg-white/20 translate-y-full group-hover:translate-y-0 transition-transform duration-300" />
+            <span className="relative z-10">{starting ? 'Starting…' : 'Start Next Round →'}</span>
+          </motion.button>
         ) : (
           <div className="flex flex-col items-center gap-2">
             {isLastRound
-              ? <p className="text-center text-sm" style={{ color: 'rgba(255,255,255,0.5)' }}>Waiting for the host to finalize the game…</p>
-              : <p className="text-center text-sm" style={{ color: 'rgba(255,255,255,0.5)' }}>Waiting for host...</p>
+              ? <p className="text-center text-sm text-white/50">Waiting for the host to finalize the game…</p>
+              : <p className="text-center text-sm text-white/50">Waiting for host...</p>
             }
           </div>
         )}
@@ -946,69 +900,9 @@ function Badge({ type }: { type: 'unique' | 'shared' | 'disputed' | 'valid' | 'i
       className="inline-flex items-center gap-1 px-2 font-bold text-[10px] rounded-full"
       style={{ height: 20, background: s.bg, border: `1px solid ${s.border}`, color: s.color, letterSpacing: '0.05em' }}
     >
-      {type === 'disputed' && <AlertTriangleIcon />}
-      {type === 'unique' && <span>✓</span>}
+      {type === 'disputed' && <AlertTriangle size={10} />}
+      {type === 'unique' && <CheckCircle2 size={10} />}
       {s.label}
     </span>
-  );
-}
-
-
-// --- Icons ---
-
-function HeartIcon({ filled, color, size }: { filled: boolean; color: string; size: number }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill={filled ? color : 'none'} stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
-    </svg>
-  );
-}
-
-function CheckIcon() {
-  return (
-    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-      <polyline points="20 6 9 17 4 12" />
-    </svg>
-  );
-}
-
-function XIcon() {
-  return (
-    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-      <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
-    </svg>
-  );
-}
-
-function AlertTriangleIcon() {
-  return (
-    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
-      <line x1="12" y1="9" x2="12" y2="13" /><line x1="12" y1="17" x2="12.01" y2="17" />
-    </svg>
-  );
-}
-
-function ClockIcon() {
-  return (
-    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <circle cx="12" cy="12" r="10" /><polyline points="12 6 12 12 16 14" />
-    </svg>
-  );
-}
-
-function SkipForwardIcon() {
-  return (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <polygon points="5 4 15 12 5 20 5 4" /><line x1="19" y1="5" x2="19" y2="19" />
-    </svg>
-  );
-}
-
-function ChevronLeftIcon() {
-  return (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-      <polyline points="15 18 9 12 15 6" />
-    </svg>
   );
 }
