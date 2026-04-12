@@ -99,7 +99,7 @@ export default function RoundPage() {
 
   useSignalREvent(HubEvents.RoundEnded, () => {
     if (!submittedRef.current) {
-      api.submitAnswers(gameId ?? '', playerId ?? '', answers).catch(() => {});
+      api.submitAnswers(gameId ?? '', playerId ?? '', answersRef.current).catch(() => {});
       submittedRef.current = true;
     }
     if (gameId && currentRound?.roundNumber) {
@@ -192,7 +192,7 @@ export default function RoundPage() {
     try {
       if (!submittedRef.current) {
         try {
-          await api.submitAnswers(gameId, playerId, answers);
+          await api.submitAnswers(gameId, playerId, answersRef.current);
           submittedRef.current = true;
           setSubmitted(true);
         } catch {
