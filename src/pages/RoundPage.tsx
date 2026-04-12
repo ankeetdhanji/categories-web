@@ -78,6 +78,7 @@ export default function RoundPage() {
     const d = data as { roundNumber: number; leaderboard: { playerId: string; displayName: string; totalScore: number; roundScore: number }[] };
     setLeaderboard(d.leaderboard);
     setReviewRoundNumber(d.roundNumber);
+    setPhase('results');
   });
 
   useSignalREvent(HubEvents.PlayerAnswerUpdated, (data) => {
@@ -99,13 +100,13 @@ export default function RoundPage() {
 
   useSignalREvent(HubEvents.RoundEnded, () => {
     if (!submittedRef.current) {
-      api.submitAnswers(gameId ?? '', playerId ?? '', answersRef.current).catch(() => {});
       submittedRef.current = true;
+      api.submitAnswers(gameId ?? '', playerId ?? '', answersRef.current).catch(() => {});
     }
     if (gameId && currentRound?.roundNumber) {
       localStorage.removeItem(`draft_${gameId}_${currentRound.roundNumber}`);
     }
-    setPhase('results');
+    // Phase transition happens via LeaderboardUpdated once the backend finishes scoring
   });
 
   // Countdown overlay timer
@@ -163,10 +164,8 @@ export default function RoundPage() {
       // server timer is the authoritative ender in timed mode.
       api.markDone(gameId, playerId).catch(() => {});
     } catch {
-      if (!auto) {
-        submittedRef.current = false;
-        setSubmitted(false);
-      }
+      submittedRef.current = false;
+      if (!auto) setSubmitted(false);
     }
   }
 
@@ -220,6 +219,8 @@ export default function RoundPage() {
       }
     }
   }
+
+  const showSubmittingOverlay = isTimedMode && secondsLeft !== null && secondsLeft <= 0;
 
   const timerClass = secondsLeft !== null && secondsLeft <= 5
     ? 'bg-red-950/80 border-2 border-red-500'
@@ -705,7 +706,46 @@ export default function RoundPage() {
           />
         )}
       </AnimatePresence>
+
+      {/* Submitting overlay — shown after timer expires until LeaderboardUpdated fires */}
+      <AnimatePresence>
+        {showSubmittingOverlay && <SubmittingOverlay />}
+      </AnimatePresence>
     </div>
+  );
+}
+
+// --- Submitting overlay (shown after timer expires, until LeaderboardUpdated fires) ---
+
+function SubmittingOverlay() {
+  return (
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      className="fixed inset-0 z-50 flex items-center justify-center"
+      style={{ background: 'rgba(30,26,77,0.92)', backdropFilter: 'blur(12px)' }}
+    >
+      <div className="flex flex-col items-center gap-6">
+        <span className="text-sm font-black uppercase tracking-[1.25px] text-white/50">
+          Time&apos;s Up!
+        </span>
+        <div className="flex gap-2">
+          {[0, 1, 2].map((j) => (
+            <motion.div
+              key={j}
+              className="w-3 h-3 rounded-full"
+              style={{ background: 'linear-gradient(135deg, #00d3f3, #51a2ff)' }}
+              animate={{ y: [0, -10, 0] }}
+              transition={{ duration: 0.7, repeat: Infinity, delay: j * 0.15 }}
+            />
+          ))}
+        </div>
+        <p className="font-bold text-[18px] text-white/80 tracking-tight">
+          Submitting your answers…
+        </p>
+      </div>
+    </motion.div>
   );
 }
 
