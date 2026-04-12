@@ -138,7 +138,7 @@ export default function RoundPage() {
       }
     }
     tick();
-    const id = setInterval(tick, countdownStartAt ? 100 : 1000);
+    const id = setInterval(tick, countdownStartAt ? 250 : 1000);
     return () => clearInterval(id);
   }, [isCountdown, countdownStartAt]);
 
@@ -266,45 +266,33 @@ export default function RoundPage() {
         <div className="absolute -top-32 -right-32 w-96 h-96 bg-purple-500 rounded-full opacity-20 blur-[100px]" />
         <div className="absolute bottom-0 -left-32 w-96 h-96 bg-pink-500 rounded-full opacity-10 blur-[100px]" />
 
-        {/* Ambient sparkles */}
-        <motion.div
-          className="absolute top-20 right-10 text-yellow-300 opacity-60"
-          animate={{ y: [0, -15, 0], scale: [1, 1.2, 1] }}
-          transition={{ duration: 3, repeat: Infinity }}
-        >
+        {/* Ambient sparkles — CSS animations (compositor thread, no JS overhead) */}
+        <div className="absolute top-20 right-10 text-yellow-300 opacity-60 animate-bounce" style={{ animationDuration: '3s' }}>
           <Sparkles size={24} />
-        </motion.div>
-        <motion.div
-          className="absolute top-40 left-12 text-pink-300 opacity-50"
-          animate={{ y: [0, 20, 0], scale: [1, 0.8, 1] }}
-          transition={{ duration: 4, repeat: Infinity, delay: 1 }}
-        >
+        </div>
+        <div className="absolute top-40 left-12 text-pink-300 opacity-50 animate-bounce" style={{ animationDuration: '4s', animationDelay: '1s' }}>
           <Sparkles size={16} />
-        </motion.div>
-        <motion.div
-          className="absolute bottom-1/3 right-16 text-cyan-300 opacity-40"
-          animate={{ y: [0, -25, 0], rotate: [0, 15, 0] }}
-          transition={{ duration: 5, repeat: Infinity, delay: 0.5 }}
-        >
+        </div>
+        <div className="absolute bottom-1/3 right-16 text-cyan-300 opacity-40 animate-bounce" style={{ animationDuration: '5s', animationDelay: '0.5s' }}>
           <Zap size={28} fill="currentColor" />
-        </motion.div>
+        </div>
 
         {/* Urgency pulse overlays */}
         <AnimatePresence>
           {isCritical && (
             <motion.div
               initial={{ opacity: 0 }}
-              animate={{ opacity: [0.05, 0.25, 0.05] }}
-              transition={{ repeat: Infinity, duration: 0.8 }}
-              className="absolute inset-0 bg-red-600 mix-blend-overlay"
+              animate={{ opacity: 1 }}
+              className="absolute inset-0 bg-red-600/15 animate-pulse"
+              style={{ animationDuration: '0.8s' }}
             />
           )}
           {isWarning && !isCritical && (
             <motion.div
               initial={{ opacity: 0 }}
-              animate={{ opacity: [0.02, 0.1, 0.02] }}
-              transition={{ repeat: Infinity, duration: 1.5 }}
-              className="absolute inset-0 bg-orange-500 mix-blend-overlay"
+              animate={{ opacity: 1 }}
+              className="absolute inset-0 bg-orange-500/8 animate-pulse"
+              style={{ animationDuration: '1.5s' }}
             />
           )}
         </AnimatePresence>
@@ -386,7 +374,7 @@ export default function RoundPage() {
               rotate: isCritical ? [0, -2, 2, -2, 0] : 0,
             }}
             transition={{ repeat: (isCritical || isWarning) ? Infinity : 0, duration: isCritical ? 0.4 : 1 }}
-            className={`relative flex flex-col items-center justify-center w-[72px] h-[72px] rounded-[20px] border backdrop-blur-xl overflow-hidden shrink-0
+            className={`relative flex flex-col items-center justify-center w-[72px] h-[72px] rounded-[20px] border overflow-hidden shrink-0
               ${isCritical
                 ? 'bg-red-950/80 border-red-500 shadow-[0_0_30px_rgba(239,68,68,0.6)]'
                 : isWarning
@@ -432,7 +420,7 @@ export default function RoundPage() {
 
           {/* Sticky Progress Section */}
           <div className="sticky top-2 z-40 w-full px-2 mt-6 mb-4">
-            <div className="w-full pt-3 pb-4 px-4 bg-indigo-950/90 backdrop-blur-2xl border border-white/10 rounded-2xl shadow-[0_15px_40px_rgba(0,0,0,0.6)] relative overflow-hidden">
+            <div className="w-full pt-3 pb-4 px-4 bg-indigo-950/95 border border-white/10 rounded-2xl shadow-[0_15px_40px_rgba(0,0,0,0.6)] relative overflow-hidden">
               {/* Background glow */}
               <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full h-1/2 bg-cyan-500/10 blur-xl rounded-full pointer-events-none" />
               <div className="flex flex-col gap-3 relative z-10">
@@ -823,27 +811,15 @@ function CountdownOverlay({
         <div className="absolute bottom-[10%] right-[10%] w-[30rem] h-[30rem] bg-blue-600/20 rounded-full blur-[100px]" />
         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[40rem] h-[40rem] bg-orange-500/10 rounded-full blur-[100px]" />
 
-        <motion.div
-          className="absolute top-[20%] left-[15%] text-yellow-300 opacity-60"
-          animate={{ y: [0, -20, 0], scale: [1, 1.2, 1], rotate: [0, 45, 0] }}
-          transition={{ duration: 3, repeat: Infinity }}
-        >
+        <div className="absolute top-[20%] left-[15%] text-yellow-300 opacity-60 animate-bounce" style={{ animationDuration: '3s' }}>
           <Sparkles size={40} />
-        </motion.div>
-        <motion.div
-          className="absolute top-[30%] right-[15%] text-cyan-300 opacity-50"
-          animate={{ y: [0, 20, 0], scale: [1, 0.8, 1], rotate: [0, -45, 0] }}
-          transition={{ duration: 4, repeat: Infinity, delay: 0.5 }}
-        >
+        </div>
+        <div className="absolute top-[30%] right-[15%] text-cyan-300 opacity-50 animate-bounce" style={{ animationDuration: '4s', animationDelay: '0.5s' }}>
           <Sparkles size={32} />
-        </motion.div>
-        <motion.div
-          className="absolute bottom-[25%] left-[25%] text-pink-300 opacity-40"
-          animate={{ scale: [1, 1.3, 1], rotate: [0, 90, 0] }}
-          transition={{ duration: 5, repeat: Infinity, delay: 1 }}
-        >
+        </div>
+        <div className="absolute bottom-[25%] left-[25%] text-pink-300 opacity-40 animate-pulse" style={{ animationDuration: '5s', animationDelay: '1s' }}>
           <Sparkles size={24} />
-        </motion.div>
+        </div>
       </div>
 
       <div className="relative z-10 flex flex-col items-center w-full max-w-md px-6 text-center mt-[-10vh]">
