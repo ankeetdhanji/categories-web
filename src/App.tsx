@@ -115,7 +115,7 @@ function ReconnectBanner() {
   return (
     <div
       className="fixed top-0 left-0 right-0 z-[100] flex items-center justify-center gap-2 py-2"
-      style={{ background: '#1e293b', borderBottom: '1px solid #334155' }}
+      style={{ background: '#1e293b', borderBottom: '1px solid #334155', paddingTop: 'env(safe-area-inset-top)' }}
     >
       <span className="inline-block w-3 h-3 rounded-full border-2 border-[#f59e0b] border-t-transparent animate-spin" />
       <span className="text-xs font-medium" style={{ color: '#f59e0b' }}>Reconnecting…</span>
