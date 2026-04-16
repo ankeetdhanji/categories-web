@@ -197,7 +197,6 @@ export default function RoundPage() {
     setAnswerPresence({});
     setSubmitted(false);
     submittedRef.current = false;
-    setSecondsLeft(null);
     setDonePlayerIds([]);
     setCurrentCategoryIndex(0);
     inputRef.current?.focus();
