@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useId, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { CheckCircle2, Zap, Flame, Clock, Sparkles, Send, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useGame, type RoundInfo } from '../context/GameContext';
@@ -56,6 +56,7 @@ export default function RoundPage() {
   const categoryRailRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+  const inputUid = useId(); // unique per mount — prevents browser autofill matching by name
   const submittedRef = useRef(false);
   const answersRef = useRef<Record<string, string>>({});
   answersRef.current = answers;
@@ -633,6 +634,7 @@ export default function RoundPage() {
                       type="text"
                       disabled={submitted}
                       value={currentValue}
+                      name={`${inputUid}-${currentCategoryIndex}`}
                       autoComplete="new-password"
                       autoCorrect="off"
                       autoCapitalize="none"
