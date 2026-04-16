@@ -438,8 +438,9 @@ export default function RoundPage() {
         </div>
       </header>
 
-      {/* Main content */}
-      <div className="flex-1 flex flex-col items-center z-10 px-4 mt-6 pb-32 w-full max-w-md mx-auto">
+      {/* Main content — overflow-y-auto so browser scrolls this div (not the page) when keyboard opens, keeping the header in view */}
+      <div className="flex-1 overflow-y-auto z-10">
+      <div className="max-w-md mx-auto px-4 pt-6 flex flex-col items-center" style={{ paddingBottom: 'max(1.5rem, env(safe-area-inset-bottom))' }}>
 
         {/* Horizontal category rail */}
         <div className="w-full relative mb-4">
@@ -665,90 +666,79 @@ export default function RoundPage() {
           </button>
         </div>
 
-      </div>
-
-      {/* Bottom bar */}
-      <div className="fixed bottom-0 left-0 right-0 z-50 pointer-events-none flex justify-center">
-        {/* Gradient fade */}
-        <div className="absolute bottom-full left-0 w-full h-24 bg-gradient-to-t from-indigo-950 via-indigo-950/90 to-transparent" />
-
-        <div
-          className="w-full px-4 pt-3 pointer-events-auto"
-          style={{ paddingBottom: 'max(1rem, env(safe-area-inset-bottom))' }}
-        >
-          <div className="max-w-md mx-auto flex flex-col gap-2">
-
-            {/* Single row: info + submit */}
-            <div className="w-full bg-indigo-950/95 backdrop-blur-xl border border-white/10 rounded-2xl p-1.5 flex items-center justify-between shadow-[0_10px_40px_rgba(0,0,0,0.8)]">
-              {/* Left: finish early info + typing */}
-              <div className="flex flex-col justify-center pl-3">
-                <div className="flex items-center gap-2">
-                  <span className="text-white/90 text-xs font-bold leading-tight">Finish Early</span>
-                  <span className="text-white/50 text-xs font-bold">•</span>
-                  <span className="text-cyan-400 text-xs font-black">{filledCount}/{categories.length}</span>
-                </div>
-                <span className="text-white/40 text-[9px] font-bold uppercase tracking-wider mt-0.5 flex items-center gap-1">
-                  {typingCount > 0 ? (
-                    <><BounceDots />{typingCount} typing</>
-                  ) : (
-                    <span className="text-emerald-400/70">No one typing</span>
-                  )}
-                </span>
+        {/* Submit bar — inline, always visible directly below nav buttons */}
+        <div className="w-full mt-4 flex flex-col gap-2">
+          <div className="w-full bg-indigo-950/95 backdrop-blur-xl border border-white/10 rounded-2xl p-1.5 flex items-center justify-between shadow-[0_10px_40px_rgba(0,0,0,0.4)]">
+            {/* Left: finish early info + typing */}
+            <div className="flex flex-col justify-center pl-3">
+              <div className="flex items-center gap-2">
+                <span className="text-white/90 text-xs font-bold leading-tight">Finish Early</span>
+                <span className="text-white/50 text-xs font-bold">•</span>
+                <span className="text-cyan-400 text-xs font-black">{filledCount}/{categories.length}</span>
               </div>
-
-              {/* Right: submit button */}
-              {isTimedMode ? (
-                submitted ? (
-                  <div className="px-4 py-2.5 rounded-xl flex items-center gap-2 text-white/60 text-xs font-bold">
-                    <BounceDots /> Waiting…
-                  </div>
+              <span className="text-white/40 text-[9px] font-bold uppercase tracking-wider mt-0.5 flex items-center gap-1">
+                {typingCount > 0 ? (
+                  <><BounceDots />{typingCount} typing</>
                 ) : (
-                  <motion.button
-                    whileTap={{ scale: 0.95 }}
-                    onClick={() => handleSubmit()}
-                    className={`px-5 py-2.5 rounded-xl flex items-center justify-center gap-1.5 font-black shadow-md active:scale-95 transition-all text-xs uppercase tracking-wider border
-                      ${filledCount === categories.length
-                        ? 'bg-gradient-to-r from-green-400 to-emerald-500 text-green-950 border-green-300 shadow-[0_0_15px_rgba(52,211,153,0.5)]'
-                        : 'bg-white/10 text-white/80 border-white/20 hover:bg-white/20'
-                      }`}
-                  >
-                    {filledCount === categories.length ? 'Submit' : 'Done'}
-                    <Send size={14} />
-                  </motion.button>
-                )
-              ) : (
-                <motion.button
-                  onClick={handleDone}
-                  disabled={submitted}
-                  whileTap={{ scale: 0.95 }}
-                  className={`px-5 py-2.5 rounded-xl flex items-center justify-center gap-1.5 font-black shadow-md transition-all text-xs uppercase tracking-wider border disabled:opacity-50
-                    ${submitted
-                      ? 'bg-white/5 border-white/10 text-white/50'
-                      : filledCount === categories.length
-                        ? 'bg-gradient-to-r from-green-400 to-emerald-500 text-green-950 border-green-300 shadow-[0_0_15px_rgba(52,211,153,0.5)]'
-                        : 'bg-white/10 text-white/80 border-white/20 hover:bg-white/20'
-                    }`}
-                >
-                  {submitted ? 'Submitted ✓' : 'Done'}
-                  {!submitted && <Send size={14} />}
-                </motion.button>
-              )}
+                  <span className="text-emerald-400/70">No one typing</span>
+                )}
+              </span>
             </div>
 
-            {/* Host force-end */}
-            {isHost && (
-              <div className="flex justify-center">
-                <button
-                  onClick={handleForceEnd}
-                  disabled={endingRound}
-                  className="text-[10px] font-bold text-red-400/50 hover:text-red-400 disabled:opacity-30 transition-colors px-3 py-1"
+            {/* Right: submit button */}
+            {isTimedMode ? (
+              submitted ? (
+                <div className="px-4 py-2.5 rounded-xl flex items-center gap-2 text-white/60 text-xs font-bold">
+                  <BounceDots /> Waiting…
+                </div>
+              ) : (
+                <motion.button
+                  whileTap={{ scale: 0.95 }}
+                  onClick={() => handleSubmit()}
+                  className={`px-5 py-2.5 rounded-xl flex items-center justify-center gap-1.5 font-black shadow-md active:scale-95 transition-all text-xs uppercase tracking-wider border
+                    ${filledCount === categories.length
+                      ? 'bg-gradient-to-r from-green-400 to-emerald-500 text-green-950 border-green-300 shadow-[0_0_15px_rgba(52,211,153,0.5)]'
+                      : 'bg-white/10 text-white/80 border-white/20 hover:bg-white/20'
+                    }`}
                 >
-                  {endingRound ? 'Ending round…' : 'Force end round'}
-                </button>
-              </div>
+                  {filledCount === categories.length ? 'Submit' : 'Done'}
+                  <Send size={14} />
+                </motion.button>
+              )
+            ) : (
+              <motion.button
+                onClick={handleDone}
+                disabled={submitted}
+                whileTap={{ scale: 0.95 }}
+                className={`px-5 py-2.5 rounded-xl flex items-center justify-center gap-1.5 font-black shadow-md transition-all text-xs uppercase tracking-wider border disabled:opacity-50
+                  ${submitted
+                    ? 'bg-white/5 border-white/10 text-white/50'
+                    : filledCount === categories.length
+                      ? 'bg-gradient-to-r from-green-400 to-emerald-500 text-green-950 border-green-300 shadow-[0_0_15px_rgba(52,211,153,0.5)]'
+                      : 'bg-white/10 text-white/80 border-white/20 hover:bg-white/20'
+                  }`}
+              >
+                {submitted ? 'Submitted ✓' : 'Done'}
+                {!submitted && <Send size={14} />}
+              </motion.button>
             )}
           </div>
+
+          {/* Host force-end */}
+          {isHost && (
+            <div className="flex justify-center">
+              <button
+                onClick={handleForceEnd}
+                disabled={endingRound}
+                className="text-[10px] font-bold text-red-400/50 hover:text-red-400 disabled:opacity-30 transition-colors px-3 py-1"
+              >
+                {endingRound ? 'Ending round…' : 'Force end round'}
+              </button>
+            </div>
+          )}
         </div>
+
+      </div>
       </div>
 
       {/* Countdown overlay */}
