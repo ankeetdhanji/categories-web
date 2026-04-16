@@ -67,6 +67,14 @@
   50%      { background-color: rgba(249,115,22,0.08); }
 }
 
+.hide-scrollbar {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.hide-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
 html {
   background-color: #312C85;
 }
