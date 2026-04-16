@@ -633,7 +633,7 @@ export default function RoundPage() {
                       type="text"
                       disabled={submitted}
                       value={currentValue}
-                      autoComplete="off"
+                      autoComplete="new-password"
                       autoCorrect="off"
                       autoCapitalize="none"
                       spellCheck={false}
