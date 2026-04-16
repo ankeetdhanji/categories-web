@@ -1,13 +1,11 @@
 import { useEffect, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Clock, ArrowLeft, ArrowRight, Check, X, AlertTriangle, Heart, Flame, Sparkles, CheckCircle2, Crown, ArrowUp, ArrowDown, Trophy, Merge, Ban, Undo2 } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Check, X, AlertTriangle, Heart, Flame, Sparkles, CheckCircle2, Crown, ArrowUp, ArrowDown, Trophy, Merge, Ban, Undo2 } from 'lucide-react';
 import { useGame, type GamePhase, type RoundInfo } from '../context/GameContext';
 import { useSignalREvent } from '../hooks/useSignalR';
 import { api, type RoundReviewResult, type AnswerEntry, type LeaderboardEntry, type FinalLeaderboardEntry, type MergeGroup } from '../services/api';
 import { HubEvents } from '../services/signalr';
 import { useConnectionStatus } from '../hooks/useConnectionStatus';
-
-const CATEGORY_REVIEW_SECONDS = 30;
 
 // Deterministic color per player ID (cycles through a palette)
 const AVATAR_COLORS = [
@@ -38,7 +36,6 @@ export default function ReviewPage() {
   const [results, setResults] = useState<RoundReviewResult | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [categoryIndex, setCategoryIndex] = useState(0);
-  const [secondsLeft, setSecondsLeft] = useState(CATEGORY_REVIEW_SECONDS);
   const [myLikes, setMyLikes] = useState<Record<string, string>>({}); // category → normalizedAnswer
   const [myDisputeVotes, setMyDisputeVotes] = useState<Record<string, boolean | null>>({}); // disputeId → true/false/null
   const [disputeProgress, setDisputeProgress] = useState<Record<string, { count: number; total: number }>>({});
@@ -145,28 +142,6 @@ export default function ReviewPage() {
     return () => clearInterval(id);
   }, [gameId]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Auto-advance timer — only the host calls the advance endpoint when it fires.
-  // Use a longer window (45s) when the current category has unresolved disputes.
-  const DISPUTE_REVIEW_SECONDS = 45;
-  useEffect(() => {
-    if (showLeaderboard) return;
-    const currentCat = results?.categories[categoryIndex];
-    const hasDisputes = currentCat?.entries.some((e) => e.isDisputed) ?? false;
-    const duration = hasDisputes ? DISPUTE_REVIEW_SECONDS : CATEGORY_REVIEW_SECONDS;
-    setSecondsLeft(duration);
-    const id = setInterval(() => {
-      setSecondsLeft((s) => {
-        if (s <= 1) {
-          clearInterval(id);
-          if (isHost && !advancingRef.current) handleAdvance();
-          return 0;
-        }
-        return s - 1;
-      });
-    }, 1000);
-    return () => clearInterval(id);
-  }, [categoryIndex, showLeaderboard, isHost, results]); // eslint-disable-line react-hooks/exhaustive-deps
-
   // Next round auto-started by server — transition back to answering
   useSignalREvent(HubEvents.RoundStarted, (payload) => {
     setCurrentRound(payload as RoundInfo);
@@ -179,7 +154,6 @@ export default function ReviewPage() {
     advancingRef.current = false;
     setAdvancing(false);
     setCategoryIndex(nextIdx);
-    setSecondsLeft(CATEGORY_REVIEW_SECONDS);
   });
 
   // SignalR: all categories reviewed
@@ -261,11 +235,10 @@ export default function ReviewPage() {
     setPhase('countdown');
   });
 
-  // SignalR: host changed — reset the review timer so the new host can advance
+  // SignalR: host changed — reset advancing state so the new host can advance
   useSignalREvent(HubEvents.HostChanged, () => {
     advancingRef.current = false;
     setAdvancing(false);
-    setSecondsLeft(CATEGORY_REVIEW_SECONDS);
   });
 
   function handleToggleSelect(answerKey: string) {
@@ -552,16 +525,7 @@ export default function ReviewPage() {
           </div>
         </div>
 
-        {/* Right: countdown */}
-        <div className="flex justify-end" style={{ flex: '1 0 0' }}>
-          <div
-            className="flex items-center gap-1.5 px-3 py-1 rounded-full font-bold text-sm bg-white/10 border border-white/15"
-            style={{ color: secondsLeft <= 10 ? '#ef4444' : '#e5e7eb' }}
-          >
-            <Clock size={14} />
-            <span>{secondsLeft}s</span>
-          </div>
-        </div>
+        <div style={{ flex: '1 0 0' }} />
       </header>
 
       {/* Progress dots */}
