@@ -651,6 +651,12 @@ export default function RoundPage() {
                           notifyAnswerPresence(gameId, playerId, currentCategory, nowFilled).catch(() => {});
                         }
                       }}
+                      onBlur={() => {
+                        if (!gameId || !playerId || submittedRef.current) return;
+                        if (Object.values(answersRef.current).some(v => v.trim())) {
+                          api.submitAnswers(gameId, playerId, answersRef.current).catch(() => {});
+                        }
+                      }}
                       onKeyDown={handleKeyDown}
                       placeholder=""
                       className={`w-full bg-transparent outline-none font-bold text-2xl transition-all duration-200 ml-1 disabled:opacity-50
