@@ -45,6 +45,8 @@ export default function ReviewPage() {
   const [revealing, setRevealing] = useState(true);
   const [advancing, setAdvancing] = useState(false);
   const advancingRef = useRef(false);
+  const [goingBack, setGoingBack] = useState(false);
+  const goingBackRef = useRef(false);
   const { isReconnecting } = useConnectionStatus();
   const reconnectingRef = useRef(false);
 
@@ -151,11 +153,13 @@ export default function ReviewPage() {
     setPhase('answering');
   });
 
-  // SignalR: another client advanced (or this client's own advance was echoed back)
+  // SignalR: another client advanced or went back (or this client's own action was echoed back)
   useSignalREvent(HubEvents.CategoryAdvanced, (data) => {
     const { categoryIndex: nextIdx } = data as { categoryIndex: number };
     advancingRef.current = false;
     setAdvancing(false);
+    goingBackRef.current = false;
+    setGoingBack(false);
     setCategoryIndex(nextIdx);
   });
 
@@ -238,10 +242,12 @@ export default function ReviewPage() {
     setPhase('countdown');
   });
 
-  // SignalR: host changed — reset advancing state so the new host can advance
+  // SignalR: host changed — reset navigation state so the new host can navigate
   useSignalREvent(HubEvents.HostChanged, () => {
     advancingRef.current = false;
     setAdvancing(false);
+    goingBackRef.current = false;
+    setGoingBack(false);
   });
 
   function handleToggleSelect(answerKey: string) {
@@ -341,6 +347,18 @@ export default function ReviewPage() {
     } catch {
       advancingRef.current = false;
       setAdvancing(false);
+    }
+  }
+
+  async function handleGoBack() {
+    if (!gameId || !playerId || categoryIndex === 0 || goingBackRef.current) return;
+    goingBackRef.current = true;
+    setGoingBack(true);
+    try {
+      await api.goBackCategory(gameId, playerId);
+    } catch {
+      goingBackRef.current = false;
+      setGoingBack(false);
     }
   }
 
@@ -766,12 +784,12 @@ export default function ReviewPage() {
             {isHost ? (
               <div className="flex items-center gap-3">
                 <motion.button
-                  whileHover={categoryIndex > 0 ? { scale: 1.05 } : {}}
-                  whileTap={categoryIndex > 0 ? { scale: 0.95 } : {}}
-                  onClick={() => { if (categoryIndex > 0) setCategoryIndex(categoryIndex - 1); }}
-                  disabled={categoryIndex === 0}
+                  whileHover={categoryIndex > 0 && !goingBack ? { scale: 1.05 } : {}}
+                  whileTap={categoryIndex > 0 && !goingBack ? { scale: 0.95 } : {}}
+                  onClick={handleGoBack}
+                  disabled={categoryIndex === 0 || goingBack}
                   className={`p-4 rounded-2xl flex items-center justify-center transition-all ${
-                    categoryIndex === 0
+                    categoryIndex === 0 || goingBack
                       ? 'bg-white/5 text-white/20 cursor-not-allowed'
                       : 'bg-white/10 text-white hover:bg-white/20'
                   }`}
