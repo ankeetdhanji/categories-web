@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { CheckCircle2, Zap, Trophy, Flame, Clock, Sparkles, Send } from 'lucide-react';
+import { CheckCircle2, Zap, Flame, Clock, Sparkles, Send, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useGame, type RoundInfo } from '../context/GameContext';
 import { useSignalREvent } from '../hooks/useSignalR';
 import { api } from '../services/api';
@@ -52,11 +52,21 @@ export default function RoundPage() {
   const [countdownSeconds, setCountdownSeconds] = useState(5);
   const [endingRound, setEndingRound] = useState(false);
   const [donePlayerIds, setDonePlayerIds] = useState<string[]>([]);
-  const [activeCategory, setActiveCategory] = useState<string | null>(null);
-  const inputRefs = useRef<(HTMLInputElement | null)[]>([]);
+  const [currentCategoryIndex, setCurrentCategoryIndex] = useState(0);
+  const categoryRailRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement | null>(null);
   const submittedRef = useRef(false);
   const answersRef = useRef<Record<string, string>>({});
   answersRef.current = answers;
+
+  // Auto-scroll rail + auto-focus input when category changes
+  useEffect(() => {
+    if (categoryRailRef.current) {
+      const activeEl = categoryRailRef.current.querySelector('[data-active="true"]');
+      if (activeEl) activeEl.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+    }
+    inputRef.current?.focus();
+  }, [currentCategoryIndex]);
 
   // Restore answer draft from localStorage on mount / round change
   useEffect(() => {
@@ -167,7 +177,8 @@ export default function RoundPage() {
     submittedRef.current = false;
     setSecondsLeft(null);
     setDonePlayerIds([]);
-    inputRefs.current[0]?.focus();
+    setCurrentCategoryIndex(0);
+    inputRef.current?.focus();
   }, [currentRound?.roundNumber]);
 
   async function handleSubmit(auto = false) {
@@ -224,14 +235,16 @@ export default function RoundPage() {
     }
   }
 
-  function handleKeyDown(e: React.KeyboardEvent, index: number) {
-    if (e.key === 'Enter' || e.key === 'Tab') {
+  function handleKeyDown(e: React.KeyboardEvent) {
+    if (e.key === 'Enter') {
       e.preventDefault();
-      const next = inputRefs.current[index + 1];
-      if (next) next.focus();
-      else if (e.key === 'Enter') handleSubmit();
+      if (currentCategoryIndex < categories.length - 1) {
+        setCurrentCategoryIndex((prev) => prev + 1);
+      } else {
+        inputRef.current?.blur();
+      }
     } else if (e.key === 'Escape') {
-      const category = categories[index];
+      const category = categories[currentCategoryIndex];
       const wasFilled = !!(answers[category]?.trim());
       setAnswers((prev) => ({ ...prev, [category]: '' }));
       if (wasFilled && gameId && playerId) {
@@ -252,12 +265,23 @@ export default function RoundPage() {
 
   const typingPlayerIds = [...new Set(Object.values(answerPresence).flat())].filter(id => id !== playerId);
   const typingCount = typingPlayerIds.length;
-  const lastDonePlayerId = donePlayerIds[donePlayerIds.length - 1];
-  const lastDonePlayer = lastDonePlayerId ? players.find(p => p.id === lastDonePlayerId) ?? null : null;
+
+  const progressPercent = categories.length > 0 ? (filledCount / categories.length) * 100 : 0;
+
+  // Current focused category state
+  const currentCategory = categories[currentCategoryIndex] ?? '';
+  const currentValue = answers[currentCategory] ?? '';
+  const currentIsFilled = !!currentValue.trim();
+  const currentIsInvalid = currentIsFilled && currentValue.trim().charAt(0).toUpperCase() !== letter.toUpperCase();
+  const currentIsCompleted = currentIsFilled && !currentIsInvalid;
+  const currentPresenceIds = (answerPresence[currentCategory] ?? []).filter((id) => id !== playerId);
+  const currentPresencePlayers = currentPresenceIds
+    .map((id) => players.find((p) => p.id === id))
+    .filter(Boolean) as typeof players;
 
   return (
     <div
-      className="min-h-screen flex flex-col relative overflow-hidden"
+      className="h-[100dvh] flex flex-col relative overflow-hidden"
       style={{ background: 'linear-gradient(144.77deg, #1e1a4d 0%, #59168b 50%, #312c85 100%)' }}
     >
       {/* Dynamic Background Ambience */}
@@ -414,304 +438,302 @@ export default function RoundPage() {
         </div>
       </header>
 
-      {/* Scrollable main content */}
-      <main className="flex-1 overflow-y-auto pb-56 z-10">
-        <div className="max-w-[672px] mx-auto flex flex-col items-center w-full">
+      {/* Main content */}
+      <div className="flex-1 flex flex-col items-center z-10 px-4 mt-6 pb-32 w-full max-w-md mx-auto">
 
-          {/* Sticky Progress Section */}
-          <div className="sticky top-2 z-40 w-full px-2 mt-6 mb-4">
-            <div className="w-full pt-3 pb-4 px-4 bg-indigo-950/95 border border-white/10 rounded-2xl shadow-[0_15px_40px_rgba(0,0,0,0.6)] relative overflow-hidden">
-              {/* Background glow */}
-              <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full h-1/2 bg-cyan-500/10 blur-xl rounded-full pointer-events-none" />
-              <div className="flex flex-col gap-3 relative z-10">
-                <div className="flex items-center justify-between">
-                  {/* Mini letter tile */}
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 bg-gradient-to-b from-yellow-300 to-orange-500 rounded-[0.8rem] flex items-center justify-center shadow-lg border border-white/20 -rotate-3">
-                      <span className="text-2xl font-black text-orange-950">{letter}</span>
-                    </div>
-                    <div className="flex flex-col">
-                      <span className="text-white/50 text-[10px] font-black uppercase tracking-widest mb-0.5">Target Letter</span>
-                      <span className="text-white/90 text-sm font-bold leading-none">
-                        Starts with <strong className="text-white font-black">{letter}</strong>
-                      </span>
-                    </div>
-                  </div>
-                  {/* Progress % badge */}
-                  <motion.span
-                    key={filledCount}
-                    initial={{ scale: 1.5, color: '#22d3ee' }}
-                    animate={{ scale: 1, color: '#a5f3fc' }}
-                    className="text-cyan-200 text-[10px] font-black bg-cyan-950/50 px-2 py-0.5 rounded border border-cyan-800/50 shadow-[0_0_10px_rgba(34,211,238,0.2)]"
-                  >
-                    {categories.length > 0 ? Math.round((filledCount / categories.length) * 100) : 0}%
-                  </motion.span>
-                </div>
-                {/* Progress bar */}
-                <div className="relative h-2.5 w-full bg-black/40 rounded-full overflow-hidden border border-white/10">
-                  <div className="absolute inset-0 flex justify-between px-1 z-10 pointer-events-none">
-                    {categories.map((_, i) => (
-                      <div key={i} className="h-full w-px bg-white/10" />
-                    ))}
-                  </div>
-                  <motion.div
-                    className="absolute top-0 left-0 h-full bg-gradient-to-r from-cyan-500 via-blue-500 to-purple-500 rounded-full"
-                    animate={{ width: `${categories.length > 0 ? (filledCount / categories.length) * 100 : 0}%` }}
-                    transition={{ type: 'spring', stiffness: 60, damping: 15 }}
-                  >
-                    <div className="absolute right-0 top-0 bottom-0 w-4 bg-white/40 blur-sm rounded-full" />
-                  </motion.div>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Answer Tiles — 1-column */}
-          <div className="w-full px-2 flex flex-col gap-4">
-            {categories.map((category, i) => {
-              const isInvalidStart = !!answers[category]?.trim() &&
-                answers[category].trim().charAt(0).toUpperCase() !== (currentRound?.letter ?? '').toUpperCase();
-              const isCompleted = !!answers[category]?.trim() && !isInvalidStart;
-              const presenceIds = (answerPresence[category] ?? []).filter((id) => id !== playerId);
-              const presencePlayers = presenceIds
-                .map((id) => players.find((p) => p.id === id))
-                .filter(Boolean) as typeof players;
+        {/* Horizontal category rail */}
+        <div className="w-full relative mb-4">
+          <div
+            ref={categoryRailRef}
+            className="w-full flex items-center overflow-x-auto hide-scrollbar snap-x snap-mandatory scroll-smooth bg-indigo-950/40 backdrop-blur-xl border border-white/10 rounded-full p-1.5 shadow-[0_4px_20px_rgba(0,0,0,0.3)] relative"
+          >
+            {categories.map((cat, idx) => {
+              const val = answers[cat] ?? '';
+              const isFilled = !!val.trim();
+              const isInvalid = isFilled && val.trim().charAt(0).toUpperCase() !== letter.toUpperCase();
+              const isCompleted = isFilled && !isInvalid;
+              const isActive = idx === currentCategoryIndex;
+              const shortCat = cat.length > 12 ? cat.substring(0, 10) + '…' : cat;
 
               return (
-                <motion.div
-                  key={category}
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: i * 0.04 }}
-                  className={`relative ${activeCategory === category ? 'z-30' : 'z-10'}`}
-                >
-                  <motion.div
-                    animate={
-                      isCompleted
-                        ? { scale: [1, 1.02, 1] }
-                        : activeCategory === category
-                          ? { scale: 1.02, y: -2 }
-                          : { scale: 1, y: 0 }
-                    }
-                    transition={{ duration: 0.2 }}
-                    className={`relative rounded-3xl border-b-[6px] flex flex-col p-4 h-[6.5rem] overflow-hidden
-                      ${activeCategory === category
-                        ? 'bg-purple-800/90 border-purple-400 shadow-[0_15px_40px_rgba(168,85,247,0.5)] ring-2 ring-purple-400/50'
-                        : isInvalidStart
-                          ? 'bg-red-950/90 border-red-700 ring-2 ring-red-500/30'
+                <div key={cat} className="relative snap-center shrink-0">
+                  {isActive && (
+                    <motion.div
+                      layoutId="activeCategoryPill"
+                      className="absolute inset-0 bg-gradient-to-r from-blue-500 to-indigo-500 rounded-full shadow-[0_0_15px_rgba(99,102,241,0.6)]"
+                      transition={{ type: 'spring', stiffness: 400, damping: 30 }}
+                    />
+                  )}
+                  <button
+                    data-active={isActive}
+                    onClick={() => setCurrentCategoryIndex(idx)}
+                    className={`relative z-10 px-4 py-2 rounded-full text-[11px] font-black whitespace-nowrap transition-colors flex items-center gap-1.5 uppercase tracking-wider
+                      ${isActive
+                        ? 'text-white'
+                        : isInvalid
+                          ? 'text-red-300'
                           : isCompleted
-                            ? 'bg-cyan-950/80 border-cyan-400 shadow-[0_10px_30px_rgba(8,145,178,0.4)]'
-                            : 'bg-black/40 border-black/60 hover:bg-white/10 hover:border-white/20'
+                            ? 'text-cyan-200'
+                            : 'text-white/50 hover:text-white/80'
                       }`}
-                    onClick={() => inputRefs.current[i]?.focus()}
                   >
-                    {activeCategory === category && (
-                      <div className="absolute inset-0 bg-gradient-to-b from-white/10 to-transparent pointer-events-none" />
-                    )}
-                    {/* Label row */}
-                    <div className="flex items-center justify-between mb-1.5 relative z-10">
-                      <span className={`text-xs font-black uppercase tracking-widest truncate pr-1
-                        ${isInvalidStart ? 'text-red-400' : isCompleted ? 'text-cyan-300' : activeCategory === category ? 'text-purple-200' : 'text-white/50'}`}>
-                        {category}
-                      </span>
-                      <div className="flex items-center gap-1">
-                        {/* Presence avatars */}
-                        {presencePlayers.length > 0 && (
-                          <div className="flex items-center">
-                            {presencePlayers.slice(0, 3).map((p, idx) => (
-                              <div key={p.id} style={{ marginLeft: idx === 0 ? 0 : -6 }}>
-                                <div
-                                  className="rounded-full flex items-center justify-center font-black text-white"
-                                  style={{
-                                    width: 18,
-                                    height: 18,
-                                    fontSize: 8,
-                                    background: getGradient(p.displayName),
-                                    border: '1px solid rgba(30,26,77,0.8)',
-                                  }}
-                                >
-                                  {p.displayName.slice(0, 1).toUpperCase()}
-                                </div>
-                              </div>
-                            ))}
-                          </div>
-                        )}
-                        <AnimatePresence>
-                          {isCompleted && (
-                            <motion.div
-                              initial={{ scale: 0, rotate: -45 }}
-                              animate={{ scale: 1, rotate: 0 }}
-                              className="bg-cyan-500/20 rounded-full p-1"
-                            >
-                              <CheckCircle2 size={16} className="text-cyan-400 drop-shadow-[0_0_5px_rgba(34,211,238,0.5)]" />
-                            </motion.div>
-                          )}
-                        </AnimatePresence>
-                      </div>
-                    </div>
-                    {/* Input */}
-                    <div className="relative flex-1 flex flex-col justify-center z-10">
-                      <div className="relative flex items-center w-full">
-                        {activeCategory === category && !answers[category]?.trim() && (
-                          <motion.div
-                            initial={{ opacity: 0, x: -5 }}
-                            animate={{ opacity: 1, x: 0 }}
-                            className="absolute left-0 text-white/30 font-black text-xl select-none pointer-events-none"
-                          >
-                            {currentRound?.letter ?? countdownLetter ?? ''}
-                          </motion.div>
-                        )}
-                        <input
-                          ref={(el) => { inputRefs.current[i] = el; }}
-                          type="text"
-                          disabled={submitted}
-                          value={answers[category] ?? ''}
-                          onChange={(e) => {
-                            const newVal = e.target.value;
-                            const wasFilled = !!(answers[category]?.trim());
-                            const nowFilled = !!newVal.trim();
-                            setAnswers((prev) => ({ ...prev, [category]: newVal }));
-                            if (gameId && playerId && wasFilled !== nowFilled) {
-                              notifyAnswerPresence(gameId, playerId, category, nowFilled).catch(() => {});
-                            }
-                          }}
-                          onKeyDown={(e) => handleKeyDown(e, i)}
-                          onFocus={() => setActiveCategory(category)}
-                          onBlur={() => setActiveCategory(null)}
-                          placeholder={activeCategory === category ? '...' : 'Tap to write'}
-                          className={`w-full bg-transparent outline-none font-black text-xl placeholder:text-white/20 placeholder:font-black disabled:opacity-50
-                            ${activeCategory === category && !answers[category]?.trim() ? 'pl-6' : ''}
-                            ${isInvalidStart ? 'text-red-300' : isCompleted ? 'text-white drop-shadow-md' : activeCategory === category ? 'text-white' : 'text-white/60'}`}
-                          style={{ caretColor: '#00d3f3' }}
-                        />
-                      </div>
-                      {/* Error feedback */}
-                      <AnimatePresence>
-                        {isInvalidStart && (
-                          <motion.div
-                            initial={{ opacity: 0, height: 0, marginTop: 0 }}
-                            animate={{ opacity: 1, height: 'auto', marginTop: 4 }}
-                            exit={{ opacity: 0, height: 0, marginTop: 0 }}
-                            className="text-red-400 text-[10px] font-bold uppercase flex items-center gap-1 overflow-hidden"
-                          >
-                            <Zap size={12} /> Needs {currentRound?.letter ?? countdownLetter}
-                          </motion.div>
-                        )}
-                      </AnimatePresence>
-                    </div>
-                  </motion.div>
-                </motion.div>
+                    {isCompleted && !isActive && <CheckCircle2 size={12} className="text-cyan-400" />}
+                    {isInvalid && !isActive && <Zap size={12} className="text-red-400" />}
+                    {shortCat}
+                  </button>
+                </div>
               );
             })}
           </div>
-
         </div>
-      </main>
+
+        {/* Slim progress bar */}
+        <div className="w-full px-2 mb-6">
+          <div className="flex items-center justify-between mb-1.5">
+            <span className="text-[9px] font-black text-white/40 uppercase tracking-widest">Round Progress</span>
+            <motion.span
+              key={filledCount}
+              initial={{ scale: 1.5, color: '#22d3ee' }}
+              animate={{ scale: 1, color: '#a5f3fc' }}
+              className="text-[10px] font-black text-cyan-200"
+            >
+              {filledCount} of {categories.length}
+            </motion.span>
+          </div>
+          <div className="w-full h-1.5 bg-black/40 rounded-full overflow-hidden border border-white/5 relative">
+            <motion.div
+              className="absolute top-0 left-0 h-full bg-gradient-to-r from-cyan-400 to-blue-500 shadow-[0_0_10px_rgba(34,211,238,0.8)] rounded-full"
+              animate={{ width: `${progressPercent}%` }}
+              transition={{ type: 'spring', stiffness: 300, damping: 30 }}
+            />
+            <motion.div
+              className="absolute top-1/2 -translate-y-1/2 w-3 h-3 bg-white rounded-full shadow-[0_0_10px_rgba(255,255,255,1)]"
+              animate={{ left: `calc(${progressPercent}% - 6px)` }}
+              transition={{ type: 'spring', stiffness: 300, damping: 30 }}
+              style={{ display: progressPercent > 0 ? 'block' : 'none' }}
+            />
+          </div>
+        </div>
+
+        {/* Single-focus input panel */}
+        <div className="w-full relative h-[9.5rem] mb-4">
+          <AnimatePresence mode="popLayout" initial={false}>
+            <motion.div
+              key={currentCategoryIndex}
+              initial={{ opacity: 0, x: 20, scale: 0.98 }}
+              animate={{ opacity: 1, x: 0, scale: 1 }}
+              exit={{ opacity: 0, x: -20, scale: 0.98 }}
+              transition={{ type: 'spring', stiffness: 400, damping: 30 }}
+              className="absolute inset-0 w-full h-full"
+            >
+              <div className={`w-full h-full rounded-[2rem] border flex flex-col p-4 shadow-2xl transition-colors duration-300 backdrop-blur-xl relative overflow-hidden
+                ${currentIsInvalid
+                  ? 'bg-red-950/30 border-red-500/40 shadow-[0_8px_32px_rgba(239,68,68,0.2)]'
+                  : currentIsCompleted
+                    ? 'bg-cyan-950/20 border-cyan-400/40 shadow-[0_8px_32px_rgba(34,211,238,0.15)]'
+                    : 'bg-indigo-900/30 border-white/10 shadow-[0_8px_32px_rgba(0,0,0,0.3)] hover:border-white/20'
+                }`}
+              >
+                {/* Ambient glow inside card */}
+                <div className="absolute top-0 right-0 w-32 h-32 bg-white/5 blur-3xl rounded-full pointer-events-none" />
+
+                {/* Label row */}
+                <div className="flex items-center justify-between mb-3 relative z-10">
+                  <div className="flex items-center gap-2">
+                    <span className={`text-xs font-black uppercase tracking-widest
+                      ${currentIsInvalid ? 'text-red-300' : currentIsCompleted ? 'text-cyan-300' : 'text-purple-200/80'}`}>
+                      {currentCategory}
+                    </span>
+                    {/* Presence avatars */}
+                    {currentPresencePlayers.length > 0 && (
+                      <div className="flex items-center">
+                        {currentPresencePlayers.slice(0, 3).map((p, idx) => (
+                          <div key={p.id} style={{ marginLeft: idx === 0 ? 0 : -6 }}>
+                            <div
+                              className="rounded-full flex items-center justify-center font-black text-white"
+                              style={{
+                                width: 18,
+                                height: 18,
+                                fontSize: 8,
+                                background: getGradient(p.displayName),
+                                border: '1px solid rgba(30,26,77,0.8)',
+                              }}
+                            >
+                              {p.displayName.slice(0, 1).toUpperCase()}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                  <AnimatePresence>
+                    {currentIsCompleted && (
+                      <motion.div initial={{ scale: 0, rotate: -45 }} animate={{ scale: 1, rotate: 0 }}>
+                        <CheckCircle2 size={18} className="text-cyan-400 drop-shadow-[0_0_8px_rgba(34,211,238,0.8)]" />
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+                </div>
+
+                {/* Input area */}
+                <div className={`relative flex-1 flex items-center w-full bg-black/20 rounded-[1.25rem] p-2 border border-white/5 shadow-inner transition-all duration-300 z-10
+                  ${currentIsInvalid ? 'focus-within:bg-black/40 focus-within:border-red-500/50' : 'focus-within:bg-black/40 focus-within:border-cyan-400/40'}`}
+                >
+                  {/* Target letter block */}
+                  <div className={`flex items-center justify-center w-12 h-12 rounded-[0.85rem] mr-3 shadow-md border transition-colors shrink-0
+                    ${currentIsInvalid
+                      ? 'bg-red-900/60 border-red-500/40 text-red-300'
+                      : currentIsCompleted
+                        ? 'bg-cyan-900/40 border-cyan-500/30 text-cyan-200'
+                        : 'bg-gradient-to-br from-indigo-500 to-purple-600 border-indigo-400/50 text-white'
+                    }`}
+                  >
+                    <span className="font-black text-2xl">{letter}</span>
+                  </div>
+
+                  <div className="relative flex-1 flex items-center h-full">
+                    {/* Blinking cursor when empty */}
+                    <AnimatePresence>
+                      {!currentIsFilled && (
+                        <motion.span
+                          initial={{ opacity: 0 }}
+                          animate={{ opacity: [1, 0, 1] }}
+                          transition={{ repeat: Infinity, duration: 1 }}
+                          className="absolute left-1 text-cyan-400 font-light text-3xl -mt-1 pointer-events-none"
+                        >
+                          |
+                        </motion.span>
+                      )}
+                    </AnimatePresence>
+                    <input
+                      ref={(el) => { inputRef.current = el; }}
+                      type="text"
+                      disabled={submitted}
+                      value={currentValue}
+                      onChange={(e) => {
+                        const newVal = e.target.value;
+                        const wasFilled = !!(answers[currentCategory]?.trim());
+                        const nowFilled = !!newVal.trim();
+                        setAnswers((prev) => ({ ...prev, [currentCategory]: newVal }));
+                        if (gameId && playerId && wasFilled !== nowFilled) {
+                          notifyAnswerPresence(gameId, playerId, currentCategory, nowFilled).catch(() => {});
+                        }
+                      }}
+                      onKeyDown={handleKeyDown}
+                      placeholder=""
+                      className={`w-full bg-transparent outline-none font-bold text-2xl transition-all duration-200 ml-1 disabled:opacity-50
+                        ${currentIsInvalid ? 'text-red-300' : currentIsCompleted ? 'text-white drop-shadow-md' : 'text-white'}`}
+                      style={{ caretColor: '#00d3f3' }}
+                    />
+                  </div>
+
+                  {/* Error feedback floating tag */}
+                  <AnimatePresence>
+                    {currentIsInvalid && (
+                      <motion.div
+                        initial={{ opacity: 0, y: 5 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: 5 }}
+                        className="absolute -top-3 right-4 text-red-100 text-[9px] font-black uppercase tracking-wider flex items-center gap-1 bg-red-600 px-2 py-0.5 rounded-full border border-red-400 shadow-md"
+                      >
+                        <Zap size={10} /> Starts with {letter}
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+                </div>
+              </div>
+            </motion.div>
+          </AnimatePresence>
+        </div>
+
+        {/* Prev/Next navigation buttons */}
+        <div className="flex w-full gap-2 relative z-20">
+          <button
+            onClick={() => setCurrentCategoryIndex((prev) => Math.max(0, prev - 1))}
+            disabled={currentCategoryIndex === 0}
+            className="flex items-center justify-center py-3.5 px-5 rounded-2xl bg-white/5 backdrop-blur-md text-white font-bold border border-white/10 active:bg-white/10 disabled:opacity-30 disabled:active:bg-white/5 transition-colors shadow-lg"
+          >
+            <ChevronLeft size={22} />
+          </button>
+
+          <button
+            onClick={() => setCurrentCategoryIndex((prev) => Math.min(categories.length - 1, prev + 1))}
+            disabled={currentCategoryIndex === categories.length - 1}
+            className="flex-1 flex items-center justify-center gap-2 py-3.5 rounded-2xl bg-gradient-to-r from-blue-500/90 to-cyan-500/90 backdrop-blur-md text-white font-black active:scale-[0.98] disabled:opacity-30 disabled:grayscale disabled:active:scale-100 transition-all shadow-[0_4px_15px_rgba(6,182,212,0.3)] text-sm tracking-wider uppercase border border-cyan-400/30 hover:border-cyan-300"
+          >
+            Next Category <ChevronRight size={18} />
+          </button>
+        </div>
+
+      </div>
 
       {/* Bottom bar */}
       <div className="fixed bottom-0 left-0 right-0 z-50 pointer-events-none flex justify-center">
         {/* Gradient fade */}
-        <div className="absolute bottom-full left-0 w-full h-32 bg-gradient-to-t from-indigo-950 via-indigo-950/90 to-transparent" />
+        <div className="absolute bottom-full left-0 w-full h-24 bg-gradient-to-t from-indigo-950 via-indigo-950/90 to-transparent" />
 
         <div
-          className="w-full bg-indigo-950/80 backdrop-blur-2xl border-t border-white/10 px-4 pt-4 pointer-events-auto shadow-[0_-10px_40px_rgba(0,0,0,0.5)]"
+          className="w-full px-4 pt-3 pointer-events-auto"
           style={{ paddingBottom: 'max(1rem, env(safe-area-inset-bottom))' }}
         >
-          <div className="max-w-[672px] mx-auto pb-4 flex flex-col gap-3">
+          <div className="max-w-md mx-auto flex flex-col gap-2">
 
-            {/* Row 1: Social feed */}
-            <div className="flex items-center justify-between bg-white/5 border border-white/10 rounded-2xl p-3">
-              <div className="flex items-center gap-3">
-                {lastDonePlayer ? (
-                  <>
-                    <div className="relative">
-                      <div
-                        className="w-9 h-9 rounded-full flex items-center justify-center font-black text-white border-2 border-[#1e1a4d] shadow-lg"
-                        style={{ background: getGradient(lastDonePlayer.displayName) }}
-                      >
-                        {lastDonePlayer.displayName.slice(0, 1).toUpperCase()}
-                      </div>
-                      <div className="absolute -bottom-1 -right-1 bg-green-400 w-3.5 h-3.5 rounded-full border-2 border-[#1e1a4d] shadow-[0_0_5px_rgba(74,222,128,0.8)]" />
-                    </div>
-                    <div className="flex flex-col">
-                      <span className="text-white text-sm font-black leading-tight flex items-center gap-1.5">
-                        {lastDonePlayer.id === playerId ? 'You' : lastDonePlayer.displayName} finished!
-                        <Trophy size={12} className="text-yellow-400" />
-                      </span>
-                      <span className="text-cyan-400 text-[10px] font-bold uppercase tracking-wider flex items-center gap-1.5 mt-0.5">
-                        {typingCount > 0 ? (
-                          <><BounceDots />{typingCount} other{typingCount !== 1 ? 's' : ''} typing</>
-                        ) : (
-                          <span className="text-emerald-400">Everyone is done!</span>
-                        )}
-                      </span>
-                    </div>
-                  </>
-                ) : (
-                  <div className="flex items-center gap-2 pl-1">
-                    {typingCount > 0 ? (
-                      <>
-                        <BounceDots />
-                        <span className="font-black text-[14px] text-white">
-                          {typingCount} player{typingCount !== 1 ? 's' : ''} answering
-                        </span>
-                      </>
-                    ) : (
-                      <span className="font-black text-[14px] text-white/50">Round in progress…</span>
-                    )}
+            {/* Single row: info + submit */}
+            <div className="w-full bg-indigo-950/95 backdrop-blur-xl border border-white/10 rounded-2xl p-1.5 flex items-center justify-between shadow-[0_10px_40px_rgba(0,0,0,0.8)]">
+              {/* Left: finish early info + typing */}
+              <div className="flex flex-col justify-center pl-3">
+                <div className="flex items-center gap-2">
+                  <span className="text-white/90 text-xs font-bold leading-tight">Finish Early</span>
+                  <span className="text-white/50 text-xs font-bold">•</span>
+                  <span className="text-cyan-400 text-xs font-black">{filledCount}/{categories.length}</span>
+                </div>
+                <span className="text-white/40 text-[9px] font-bold uppercase tracking-wider mt-0.5 flex items-center gap-1">
+                  {typingCount > 0 ? (
+                    <><BounceDots />{typingCount} typing</>
+                  ) : (
+                    <span className="text-emerald-400/70">No one typing</span>
+                  )}
+                </span>
+              </div>
+
+              {/* Right: submit button */}
+              {isTimedMode ? (
+                submitted ? (
+                  <div className="px-4 py-2.5 rounded-xl flex items-center gap-2 text-white/60 text-xs font-bold">
+                    <BounceDots /> Waiting…
                   </div>
-                )}
-              </div>
-              <div className="bg-black/40 rounded-full px-3 py-1.5 border border-white/10 flex items-center gap-1 shrink-0">
-                <Clock size={10} className="text-white/60" />
-                <span className="text-white/60 text-[9px] font-black uppercase tracking-wider">Auto-submit</span>
-              </div>
-            </div>
-
-            {/* Row 2: Submit button */}
-            {isTimedMode ? (
-              submitted ? (
-                <motion.div
-                  initial={{ opacity: 0, scale: 0.95 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  className="w-full bg-white/5 border border-white/10 py-4 rounded-2xl font-bold text-lg flex items-center justify-center gap-3 text-white/80"
-                >
-                  <BounceDots size="lg" /> Waiting for others to finish…
-                </motion.div>
+                ) : (
+                  <motion.button
+                    whileTap={{ scale: 0.95 }}
+                    onClick={() => handleSubmit()}
+                    className={`px-5 py-2.5 rounded-xl flex items-center justify-center gap-1.5 font-black shadow-md active:scale-95 transition-all text-xs uppercase tracking-wider border
+                      ${filledCount === categories.length
+                        ? 'bg-gradient-to-r from-green-400 to-emerald-500 text-green-950 border-green-300 shadow-[0_0_15px_rgba(52,211,153,0.5)]'
+                        : 'bg-white/10 text-white/80 border-white/20 hover:bg-white/20'
+                      }`}
+                  >
+                    {filledCount === categories.length ? 'Submit' : 'Done'}
+                    <Send size={14} />
+                  </motion.button>
+                )
               ) : (
                 <motion.button
-                  initial={{ y: 20, opacity: 0 }}
-                  animate={{ y: 0, opacity: 1 }}
-                  whileHover={{ scale: 1.02 }}
-                  whileTap={{ scale: 0.98 }}
-                  onClick={() => handleSubmit()}
-                  className={`w-full text-white py-4 rounded-2xl font-black text-lg flex items-center justify-center gap-2 border-b-[5px] transition-shadow
-                    ${filledCount === categories.length
-                      ? 'bg-gradient-to-r from-green-400 via-emerald-500 to-green-500 shadow-[0_0_30px_rgba(52,211,153,0.4)] border-green-700 hover:shadow-[0_0_40px_rgba(52,211,153,0.6)]'
-                      : 'bg-gradient-to-r from-indigo-500 to-blue-600 shadow-[0_0_20px_rgba(99,102,241,0.4)] border-indigo-800 hover:shadow-[0_0_30px_rgba(99,102,241,0.6)]'
+                  onClick={handleDone}
+                  disabled={submitted}
+                  whileTap={{ scale: 0.95 }}
+                  className={`px-5 py-2.5 rounded-xl flex items-center justify-center gap-1.5 font-black shadow-md transition-all text-xs uppercase tracking-wider border disabled:opacity-50
+                    ${submitted
+                      ? 'bg-white/5 border-white/10 text-white/50'
+                      : filledCount === categories.length
+                        ? 'bg-gradient-to-r from-green-400 to-emerald-500 text-green-950 border-green-300 shadow-[0_0_15px_rgba(52,211,153,0.5)]'
+                        : 'bg-white/10 text-white/80 border-white/20 hover:bg-white/20'
                     }`}
                 >
-                  <Send size={20} className="drop-shadow-md" />
-                  {filledCount === categories.length ? 'Submit Answers' : `Finish Early (${filledCount}/${categories.length})`}
+                  {submitted ? 'Submitted ✓' : 'Done'}
+                  {!submitted && <Send size={14} />}
                 </motion.button>
-              )
-            ) : (
-              <motion.button
-                onClick={handleDone}
-                disabled={submitted}
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
-                className={`w-full text-white py-4 rounded-2xl font-black text-lg flex items-center justify-center gap-2 border-b-[5px] transition-shadow disabled:opacity-50
-                  ${submitted
-                    ? 'bg-white/5 border-white/10'
-                    : filledCount === categories.length
-                      ? 'bg-gradient-to-r from-green-400 via-emerald-500 to-green-500 shadow-[0_0_30px_rgba(52,211,153,0.4)] border-green-700'
-                      : 'bg-gradient-to-r from-indigo-500 to-blue-600 shadow-[0_0_20px_rgba(99,102,241,0.4)] border-indigo-800'
-                  }`}
-              >
-                {submitted ? 'Submitted ✓' : 'Done'}
-              </motion.button>
-            )}
+              )}
+            </div>
 
             {/* Host force-end */}
             {isHost && (
