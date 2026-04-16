@@ -62,6 +62,14 @@ export interface PlayerRef {
   displayName: string;
 }
 
+export interface MergeGroup {
+  id: string;
+  category: string;
+  canonicalAnswer: string;
+  mergedNormalizedAnswers: string[];
+  players?: PlayerRef[];
+}
+
 export interface AnswerEntry {
   rawAnswer: string;
   normalizedAnswer: string;
@@ -70,6 +78,11 @@ export interface AnswerEntry {
   isUnique: boolean;
   isDisputed: boolean;
   disputeId: string | null;
+  isRejected?: boolean;
+  isMerged?: boolean;
+  mergeGroupId?: string;
+  mergeCanonicalAnswer?: string;
+  mergeVariants?: string[];
 }
 
 export interface CategoryReview {
@@ -199,6 +212,30 @@ export const api = {
       method: 'POST',
       body: JSON.stringify({ playerId }),
     })),
+
+  rejectAnswer: (gameId: string, playerId: string, category: string, normalizedAnswer: string) =>
+    request<void>(`/api/games/${gameId}/rounds/current/moderation/reject`, {
+      method: 'POST',
+      body: JSON.stringify({ playerId, category, normalizedAnswer }),
+    }),
+
+  unrejectAnswer: (gameId: string, playerId: string, category: string, normalizedAnswer: string) =>
+    request<void>(`/api/games/${gameId}/rounds/current/moderation/reject`, {
+      method: 'DELETE',
+      body: JSON.stringify({ playerId, category, normalizedAnswer }),
+    }),
+
+  mergeAnswers: (gameId: string, playerId: string, category: string, normalizedAnswers: string[], canonicalAnswer: string) =>
+    request<{ mergeGroupId: string }>(`/api/games/${gameId}/rounds/current/moderation/merge`, {
+      method: 'POST',
+      body: JSON.stringify({ playerId, category, normalizedAnswers, canonicalAnswer }),
+    }),
+
+  unmergeAnswers: (gameId: string, playerId: string, mergeGroupId: string) =>
+    request<void>(`/api/games/${gameId}/rounds/current/moderation/merge/${mergeGroupId}`, {
+      method: 'DELETE',
+      body: JSON.stringify({ playerId }),
+    }),
 
   getDefaultCategories: () =>
     request<{ categories: string[] }>('/api/categories/defaults'),

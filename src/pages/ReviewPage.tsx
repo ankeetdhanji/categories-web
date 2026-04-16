@@ -1,9 +1,9 @@
 import { useEffect, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Clock, ArrowLeft, ArrowRight, Check, X, AlertTriangle, Heart, Flame, Sparkles, CheckCircle2, Crown, ArrowUp, ArrowDown, Trophy } from 'lucide-react';
+import { Clock, ArrowLeft, ArrowRight, Check, X, AlertTriangle, Heart, Flame, Sparkles, CheckCircle2, Crown, ArrowUp, ArrowDown, Trophy, Merge, Ban, Undo2 } from 'lucide-react';
 import { useGame, type GamePhase, type RoundInfo } from '../context/GameContext';
 import { useSignalREvent } from '../hooks/useSignalR';
-import { api, type RoundReviewResult, type AnswerEntry, type LeaderboardEntry, type FinalLeaderboardEntry } from '../services/api';
+import { api, type RoundReviewResult, type AnswerEntry, type LeaderboardEntry, type FinalLeaderboardEntry, type MergeGroup } from '../services/api';
 import { HubEvents } from '../services/signalr';
 import { useConnectionStatus } from '../hooks/useConnectionStatus';
 
@@ -51,9 +51,16 @@ export default function ReviewPage() {
   const { isReconnecting } = useConnectionStatus();
   const reconnectingRef = useRef(false);
 
+  // Host moderation state
+  const [selectedAnswerKeys, setSelectedAnswerKeys] = useState<Set<string>>(new Set());
+  const [rejectedAnswerKeys, setRejectedAnswerKeys] = useState<Set<string>>(new Set());
+  const [mergeGroups, setMergeGroups] = useState<MergeGroup[]>([]);
+  const [moderationPending, setModerationPending] = useState(false);
+
   // Reveal animation: flash category name centered, then show answers
   useEffect(() => {
     setRevealing(true);
+    setSelectedAnswerKeys(new Set()); // clear selection on category change
     const t = setTimeout(() => setRevealing(false), 1400);
     return () => clearTimeout(t);
   }, [categoryIndex]);
@@ -63,7 +70,28 @@ export default function ReviewPage() {
     if (!gameId || !roundToFetch) return;
     setLoadError(null);
     api.getRoundResults(gameId, roundToFetch)
-      .then(setResults)
+      .then((r) => {
+        setResults(r);
+        // Initialize moderation state from persisted data
+        const rejected = new Set<string>();
+        const mergeGroupsInit: MergeGroup[] = [];
+        for (const cat of r.categories) {
+          for (const entry of cat.entries) {
+            if (entry.isRejected) rejected.add(`${cat.name}:${entry.normalizedAnswer}`);
+            if (entry.isMerged && entry.mergeGroupId && !mergeGroupsInit.find(g => g.id === entry.mergeGroupId)) {
+              mergeGroupsInit.push({
+                id: entry.mergeGroupId,
+                category: cat.name,
+                canonicalAnswer: entry.mergeCanonicalAnswer ?? entry.rawAnswer,
+                mergedNormalizedAnswers: entry.mergeVariants?.map(v => v.trim().toLowerCase()) ?? [],
+                players: entry.players,
+              });
+            }
+          }
+        }
+        setRejectedAnswerKeys(rejected);
+        setMergeGroups(mergeGroupsInit);
+      })
       .catch((err: unknown) => {
         console.error('getRoundResults failed:', err);
         setLoadError(err instanceof Error ? err.message : String(err));
@@ -204,6 +232,27 @@ export default function ReviewPage() {
     setResolvedDisputes((prev) => ({ ...prev, [disputeId]: isValid }));
   });
 
+  // SignalR: host rejected/unrejected an answer
+  useSignalREvent(HubEvents.AnswerRejected, (data) => {
+    const { category, normalizedAnswer, isRejected } = data as { category: string; normalizedAnswer: string; isRejected: boolean };
+    const key = `${category}:${normalizedAnswer}`;
+    setRejectedAnswerKeys((prev) => {
+      const next = new Set(prev);
+      if (isRejected) next.add(key); else next.delete(key);
+      return next;
+    });
+  });
+
+  // SignalR: host merged/unmerged answers
+  useSignalREvent(HubEvents.AnswerMerged, (data) => {
+    const d = data as { isMerged: boolean; mergeGroup?: MergeGroup; mergeGroupId?: string };
+    if (d.isMerged && d.mergeGroup) {
+      setMergeGroups((prev) => [...prev.filter(g => g.id !== d.mergeGroup!.id), d.mergeGroup!]);
+    } else if (!d.isMerged && d.mergeGroupId) {
+      setMergeGroups((prev) => prev.filter(g => g.id !== d.mergeGroupId));
+    }
+  });
+
   // SignalR: host started next round — show countdown before answering begins
   useSignalREvent(HubEvents.GameCountdown, (data) => {
     const { startAt, letter, roundNumber } = data as { startAt: string; letter: string; roundNumber: number };
@@ -218,6 +267,94 @@ export default function ReviewPage() {
     setAdvancing(false);
     setSecondsLeft(CATEGORY_REVIEW_SECONDS);
   });
+
+  function handleToggleSelect(answerKey: string) {
+    setSelectedAnswerKeys((prev) => {
+      const next = new Set(prev);
+      if (next.has(answerKey)) next.delete(answerKey); else next.add(answerKey);
+      return next;
+    });
+  }
+
+  // Direct reject/unreject from the X button on an individual answer row
+  async function handleDirectReject(answerKey: string) {
+    if (!gameId || !playerId) return;
+    const [category, ...normParts] = answerKey.split(':');
+    const normalizedAnswer = normParts.join(':');
+    const isCurrentlyRejected = rejectedAnswerKeys.has(answerKey);
+    setRejectedAnswerKeys((prev) => {
+      const next = new Set(prev);
+      if (isCurrentlyRejected) next.delete(answerKey); else next.add(answerKey);
+      return next;
+    });
+    setSelectedAnswerKeys((prev) => { const next = new Set(prev); next.delete(answerKey); return next; });
+    try {
+      if (isCurrentlyRejected) {
+        await api.unrejectAnswer(gameId, playerId, category, normalizedAnswer);
+      } else {
+        await api.rejectAnswer(gameId, playerId, category, normalizedAnswer);
+      }
+    } catch {
+      setRejectedAnswerKeys((prev) => {
+        const next = new Set(prev);
+        if (isCurrentlyRejected) next.add(answerKey); else next.delete(answerKey);
+        return next;
+      });
+    }
+  }
+
+  // Reject all selected answers from the floating popup
+  async function handleRejectSelected() {
+    if (!gameId || !playerId) return;
+    const keys = [...selectedAnswerKeys];
+    setSelectedAnswerKeys(new Set());
+    for (const key of keys) {
+      const [category, ...normParts] = key.split(':');
+      setRejectedAnswerKeys((prev) => { const next = new Set(prev); next.add(key); return next; });
+      try {
+        await api.rejectAnswer(gameId, playerId, category, normParts.join(':'));
+      } catch {
+        setRejectedAnswerKeys((prev) => { const next = new Set(prev); next.delete(key); return next; });
+      }
+    }
+  }
+
+  // Merge selected answers — canonical name auto-generated as "Answer1 / Answer2"
+  async function handleMerge() {
+    if (!gameId || !playerId || !results || selectedAnswerKeys.size < 2) return;
+    const keys = [...selectedAnswerKeys];
+    const categories = keys.map(k => k.split(':')[0]);
+    if (new Set(categories).size !== 1) return;
+    const category = categories[0];
+    const normalizedAnswers = keys.map(k => k.split(':').slice(1).join(':'));
+    const catEntries = results.categories.find(c => c.name === category)?.entries ?? [];
+    const uniqueTexts = [...new Set(normalizedAnswers
+      .map(norm => catEntries.find(e => e.normalizedAnswer === norm)?.rawAnswer ?? norm))];
+    const canonicalAnswer = uniqueTexts.join(' / ');
+    setModerationPending(true);
+    setSelectedAnswerKeys(new Set());
+    try {
+      await api.mergeAnswers(gameId, playerId, category, normalizedAnswers, canonicalAnswer);
+    } catch {
+      setSelectedAnswerKeys(new Set(keys));
+    } finally {
+      setModerationPending(false);
+    }
+  }
+
+  async function handleUnmerge(mergeGroupId: string) {
+    if (!gameId || !playerId) return;
+    setModerationPending(true);
+    // Optimistic
+    setMergeGroups((prev) => prev.filter(g => g.id !== mergeGroupId));
+    try {
+      await api.unmergeAnswers(gameId, playerId, mergeGroupId);
+    } catch {
+      // can't easily revert without re-fetching; silently fail
+    } finally {
+      setModerationPending(false);
+    }
+  }
 
   async function handleAdvance() {
     if (!gameId || !playerId || !results || advancingRef.current) return;
@@ -291,8 +428,22 @@ export default function ReviewPage() {
   const totalCategories = categories.length;
   const currentCategory = categories[Math.min(categoryIndex, totalCategories - 1)];
 
-  const uniqueCount = currentCategory.entries.filter((e) => e.isUnique && !e.isDisputed).length;
-  const disputedCount = currentCategory.entries.filter((e) => e.isDisputed).length;
+  // Derive merge groups for current category
+  const currentCategoryMergeGroups = mergeGroups.filter(g => g.category === currentCategory.name);
+  const mergedNormsInCategory = new Set(currentCategoryMergeGroups.flatMap(g => g.mergedNormalizedAnswers));
+
+  // Non-merged entries
+  const regularEntries = currentCategory.entries.filter(e => !e.isMerged && !mergedNormsInCategory.has(e.normalizedAnswer));
+
+  const uniqueCount = regularEntries.filter((e) => e.isUnique && !e.isDisputed && !rejectedAnswerKeys.has(`${currentCategory.name}:${e.normalizedAnswer}`)).length;
+  const disputedCount = regularEntries.filter((e) => e.isDisputed).length;
+
+  // Selection mode (host only)
+  const isSelectionMode = isHost && selectedAnswerKeys.size > 0;
+  const selectedKeys = [...selectedAnswerKeys];
+  const selectedCategories = new Set(selectedKeys.map(k => k.split(':')[0]));
+  const canMerge = isHost && selectedAnswerKeys.size >= 2 && selectedCategories.size === 1 && selectedCategories.has(currentCategory.name);
+  const canReject = isHost && selectedAnswerKeys.size === 1 && selectedCategories.has(currentCategory.name);
 
   if (finalizing) {
     return (
@@ -501,7 +652,7 @@ export default function ReviewPage() {
                 </div>
 
                 {/* Answer rows */}
-                {currentCategory.entries.length === 0 ? (
+                {currentCategory.entries.length === 0 && currentCategoryMergeGroups.length === 0 ? (
                   <div className="flex items-center justify-center py-12">
                     <span className="text-sm text-white/40">No answers submitted</span>
                   </div>
@@ -510,27 +661,117 @@ export default function ReviewPage() {
                     variants={{ hidden: { opacity: 0 }, visible: { opacity: 1, transition: { staggerChildren: 0.1, delayChildren: 0.1 } } }}
                     initial="hidden"
                     animate="visible"
-                    className="p-4 sm:p-6 space-y-3"
+                    className="p-4 sm:p-6 space-y-3 relative"
                   >
-                    {currentCategory.entries.map((entry, i) => (
-                      <motion.div
-                        key={`${entry.normalizedAnswer}-${i}`}
-                        variants={{ hidden: { opacity: 0, y: 30, scale: 0.95 }, visible: { opacity: 1, y: 0, scale: 1, transition: { type: 'spring', stiffness: 300, damping: 24 } } }}
-                      >
-                        <AnswerRow
-                          entry={entry}
-                          category={currentCategory.name}
-                          playerId={playerId}
-                          players={players}
-                          myLike={myLikes[currentCategory.name]}
-                          myVote={entry.disputeId ? myDisputeVotes[entry.disputeId] : undefined}
-                          progress={entry.disputeId ? disputeProgress[entry.disputeId] : undefined}
-                          resolved={entry.disputeId ? resolvedDisputes[entry.disputeId] : undefined}
-                          onLike={handleLike}
-                          onDisputeVote={handleDisputeVote}
-                        />
-                      </motion.div>
-                    ))}
+                    {/* Merged answer cards */}
+                    <AnimatePresence>
+                      {currentCategoryMergeGroups.map((group) => (
+                        <motion.div
+                          key={`merge-${group.id}`}
+                          layoutId={`merge-${group.id}`}
+                          initial={{ scale: 0.8, opacity: 0 }}
+                          animate={{ scale: 1, opacity: 1 }}
+                          exit={{ scale: 0.7, opacity: 0, y: 20 }}
+                          transition={{ type: 'spring', stiffness: 300, damping: 20, delay: 0.15 }}
+                        >
+                          <MergedAnswerCard
+                            group={group}
+                            allEntries={currentCategory.entries}
+                            isHost={isHost}
+                            onUnmerge={handleUnmerge}
+                          />
+                        </motion.div>
+                      ))}
+                    </AnimatePresence>
+
+                    {/* Regular answer rows */}
+                    <AnimatePresence>
+                      {regularEntries.map((entry, i) => {
+                        const answerKey = `${currentCategory.name}:${entry.normalizedAnswer}`;
+                        const isRejected = rejectedAnswerKeys.has(answerKey);
+                        const isSelected = selectedAnswerKeys.has(answerKey);
+                        return (
+                          <motion.div
+                            key={`${entry.normalizedAnswer}-${i}`}
+                            layoutId={answerKey}
+                            variants={{ hidden: { opacity: 0, y: 30, scale: 0.95 }, visible: { opacity: 1, y: 0, scale: 1, transition: { type: 'spring', stiffness: 300, damping: 24 } } }}
+                            exit={{ scale: 0.7, opacity: 0, y: 20, transition: { duration: 0.25 } }}
+                          >
+                            <AnswerRow
+                              entry={entry}
+                              category={currentCategory.name}
+                              playerId={playerId}
+                              players={players}
+                              myLike={myLikes[currentCategory.name]}
+                              myVote={entry.disputeId ? myDisputeVotes[entry.disputeId] : undefined}
+                              progress={entry.disputeId ? disputeProgress[entry.disputeId] : undefined}
+                              resolved={entry.disputeId ? resolvedDisputes[entry.disputeId] : undefined}
+                              onLike={handleLike}
+                              onDisputeVote={handleDisputeVote}
+                              isRejected={isRejected}
+                              isSelected={isSelected}
+                              isHost={isHost}
+                              onToggleSelect={isHost ? () => handleToggleSelect(answerKey) : undefined}
+                              onDirectReject={isHost ? () => handleDirectReject(answerKey) : undefined}
+                            />
+                          </motion.div>
+                        );
+                      })}
+                    </AnimatePresence>
+
+                    {/* Floating action popup — host only, appears when answers are selected */}
+                    <AnimatePresence>
+                      {isHost && isSelectionMode && (
+                        <motion.div
+                          initial={{ opacity: 0, y: 12, scale: 0.95 }}
+                          animate={{ opacity: 1, y: 0, scale: 1 }}
+                          exit={{ opacity: 0, y: 12, scale: 0.95 }}
+                          transition={{ type: 'spring', stiffness: 400, damping: 30 }}
+                          className="sticky bottom-4 z-20 flex justify-center pt-2"
+                        >
+                          <div
+                            className="flex items-center gap-2 px-4 py-3 rounded-2xl"
+                            style={{
+                              background: 'rgba(8,15,35,0.95)',
+                              backdropFilter: 'blur(16px)',
+                              WebkitBackdropFilter: 'blur(16px)',
+                              border: '1px solid rgba(96,165,250,0.5)',
+                              boxShadow: '0 8px 32px rgba(0,0,0,0.5)',
+                            }}
+                          >
+                            <button
+                              onClick={() => setSelectedAnswerKeys(new Set())}
+                              className="p-2 rounded-xl bg-white/10 text-white/60 hover:bg-white/20"
+                            >
+                              <X size={16} />
+                            </button>
+                            <span className="text-white/60 text-sm font-semibold pr-1">
+                              {selectedAnswerKeys.size} selected
+                            </span>
+                            {canMerge && (
+                              <motion.button
+                                whileTap={{ scale: 0.95 }}
+                                onClick={handleMerge}
+                                disabled={moderationPending}
+                                className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-violet-600 text-white font-bold text-sm disabled:opacity-50"
+                              >
+                                <Merge size={15} /> Merge
+                              </motion.button>
+                            )}
+                            {canReject && (
+                              <motion.button
+                                whileTap={{ scale: 0.95 }}
+                                onClick={handleRejectSelected}
+                                disabled={moderationPending}
+                                className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-red-600/80 text-white font-bold text-sm disabled:opacity-50"
+                              >
+                                <Ban size={15} /> Reject
+                              </motion.button>
+                            )}
+                          </div>
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
                   </motion.div>
                 )}
               </motion.div>
@@ -623,19 +864,29 @@ interface AnswerRowProps {
   resolved: boolean | undefined;
   onLike: (category: string, normalizedAnswer: string) => void;
   onDisputeVote: (entry: AnswerEntry, isValid: boolean) => void;
+  isRejected?: boolean;
+  isSelected?: boolean;
+  isHost?: boolean;
+  onToggleSelect?: () => void;
+  onDirectReject?: () => void;
 }
 
-function AnswerRow({ entry, category, playerId, myLike, myVote, progress, resolved, onLike, onDisputeVote }: AnswerRowProps) {
+function AnswerRow({ entry, category, playerId, myLike, myVote, progress, resolved, onLike, onDisputeVote, isRejected, isSelected, isHost, onToggleSelect, onDirectReject }: AnswerRowProps) {
   const isOwnAnswer = entry.players.some((p) => p.id === playerId);
   const isAuthor = isOwnAnswer;
   const hasLiked = myLike === entry.normalizedAnswer;
   const hasVoted = myVote !== undefined && myVote !== null;
 
   // Determine card class + text decoration based on status
-  let cardClass = 'rounded-2xl px-4 py-3 flex items-center justify-between';
+  let cardClass = 'rounded-2xl px-4 py-3 flex items-center justify-between transition-all';
   let textDecoration = '';
 
-  if (entry.isDisputed && resolved === false) {
+  if (isRejected) {
+    cardClass += ' bg-red-950/30 border border-red-900/50 opacity-50';
+    textDecoration = 'line-through';
+  } else if (isSelected) {
+    cardClass += ' bg-violet-900/30 border border-violet-400 shadow-[0_0_0_2px_rgba(167,139,250,0.3)]';
+  } else if (entry.isDisputed && resolved === false) {
     cardClass += ' bg-red-950/30 border border-red-900/50 opacity-70';
     textDecoration = 'line-through';
   } else if (entry.isDisputed && resolved === true) {
@@ -650,13 +901,17 @@ function AnswerRow({ entry, category, playerId, myLike, myVote, progress, resolv
   }
 
   return (
-    <div className={cardClass} style={{ minHeight: 80 }}>
+    <div
+      className={cardClass}
+      style={{ minHeight: 80, cursor: isHost && !isRejected ? 'pointer' : undefined }}
+      onClick={isHost && !isRejected && onToggleSelect ? onToggleSelect : undefined}
+    >
       {/* Disputed pulse overlay */}
-      {entry.isDisputed && resolved === undefined && (
+      {entry.isDisputed && resolved === undefined && !isRejected && (
         <div className="absolute inset-0 bg-orange-500/10 animate-pulse pointer-events-none" />
       )}
       {/* Shared right accent bar */}
-      {!entry.isDisputed && !entry.isUnique && (
+      {!entry.isDisputed && !entry.isUnique && !isRejected && !isSelected && (
         <div className="absolute right-0 top-0 bottom-0 w-1.5 bg-purple-500/50 pointer-events-none" />
       )}
 
@@ -667,11 +922,12 @@ function AnswerRow({ entry, category, playerId, myLike, myVote, progress, resolv
           <span className="font-bold text-xl text-white" style={{ textDecoration: textDecoration || undefined }}>
             {entry.rawAnswer}
           </span>
-          {entry.isDisputed && resolved === undefined && <Badge type="disputed" />}
-          {entry.isDisputed && resolved === true && <Badge type="valid" />}
-          {entry.isDisputed && resolved === false && <Badge type="invalid" />}
-          {!entry.isDisputed && entry.isUnique && <Badge type="unique" />}
-          {!entry.isDisputed && entry.isShared && <Badge type="shared" />}
+          {isRejected && <Badge type="rejected" />}
+          {!isRejected && entry.isDisputed && resolved === undefined && <Badge type="disputed" />}
+          {!isRejected && entry.isDisputed && resolved === true && <Badge type="valid" />}
+          {!isRejected && entry.isDisputed && resolved === false && <Badge type="invalid" />}
+          {!isRejected && !entry.isDisputed && entry.isUnique && <Badge type="unique" />}
+          {!isRejected && !entry.isDisputed && entry.isShared && <Badge type="shared" />}
         </div>
 
         {/* Avatar stack + names */}
@@ -702,8 +958,28 @@ function AnswerRow({ entry, category, playerId, myLike, myVote, progress, resolv
       </div>
 
       {/* Right: action area */}
-      <div className="flex items-center justify-end shrink-0 ml-3 min-w-[130px] md:min-w-[200px] relative z-10">
-        {entry.isDisputed && !isAuthor ? (
+      <div
+        className="flex items-center justify-end shrink-0 ml-3 min-w-[130px] md:min-w-[200px] relative z-10 gap-2"
+        onClick={(e) => e.stopPropagation()}
+      >
+        {isHost ? (
+          isRejected ? (
+            <button
+              onClick={onDirectReject}
+              className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-white/10 text-white/60 font-bold text-xs hover:bg-white/20"
+            >
+              <Undo2 size={14} /> Undo
+            </button>
+          ) : (
+            <button
+              onClick={onDirectReject}
+              className="p-2 rounded-xl text-white/30 hover:text-red-400 hover:bg-red-900/20 transition-colors"
+              title="Reject answer"
+            >
+              <X size={16} />
+            </button>
+          )
+        ) : entry.isDisputed && !isAuthor ? (
           <DisputeActions
             entry={entry}
             myVote={myVote}
@@ -735,6 +1011,92 @@ function AnswerRow({ entry, category, playerId, myLike, myVote, progress, resolv
           </button>
         )}
       </div>
+    </div>
+  );
+}
+
+// --- Merged answer card ---
+
+interface MergedAnswerCardProps {
+  group: MergeGroup;
+  allEntries: AnswerEntry[];
+  isHost: boolean;
+  onUnmerge: (mergeGroupId: string) => void;
+}
+
+function MergedAnswerCard({ group, allEntries, isHost, onUnmerge }: MergedAnswerCardProps) {
+  // Derive players from the current results entries rather than trusting the merge group
+  // (server's AnswerMerged event doesn't include players)
+  const players = allEntries
+    .filter(e => group.mergedNormalizedAnswers.includes(e.normalizedAnswer))
+    .flatMap(e => e.players)
+    .filter((p, i, arr) => arr.findIndex(x => x.id === p.id) === i);
+
+  return (
+    <div
+      className="rounded-2xl px-4 py-4 relative overflow-hidden"
+      style={{
+        background: 'linear-gradient(135deg, rgba(109,40,217,0.25) 0%, rgba(76,29,149,0.15) 100%)',
+        border: '1.5px solid rgba(139,92,246,0.5)',
+        boxShadow: '0 0 20px rgba(109,40,217,0.2)',
+      }}
+    >
+      {/* Duplicate badge */}
+      <div className="absolute top-3 right-3 flex items-center gap-1">
+        {isHost && (
+          <button
+            onClick={() => onUnmerge(group.id)}
+            className="p-1.5 rounded-lg bg-white/10 text-white/50 hover:bg-white/20 mr-1"
+            title="Unmerge"
+          >
+            <Undo2 size={14} />
+          </button>
+        )}
+        <span
+          className="inline-flex items-center gap-1 px-2 font-bold text-[10px] rounded-full"
+          style={{ height: 20, background: 'rgba(109,40,217,0.3)', border: '1px solid rgba(139,92,246,0.5)', color: '#c084fc', letterSpacing: '0.05em' }}
+        >
+          <Merge size={10} /> Duplicate
+        </span>
+      </div>
+
+      {/* Canonical answer */}
+      <div className="font-black text-2xl text-white mb-3 pr-24">
+        {group.canonicalAnswer}
+      </div>
+
+      {/* Player avatars */}
+      <div className="flex items-center gap-2 mb-2">
+        <div className="flex">
+          {players.map((p, i) => (
+            <div
+              key={p.id}
+              title={p.displayName}
+              className="flex items-center justify-center rounded-full font-bold text-[10px] ring-1 ring-black/30"
+              style={{
+                width: 24, height: 24,
+                background: avatarColor(p.id),
+                marginLeft: i > 0 ? -8 : 0,
+                color: '#0b0f14',
+                zIndex: players.length - i,
+                position: 'relative',
+              }}
+            >
+              {p.displayName[0].toUpperCase()}
+            </div>
+          ))}
+        </div>
+        <span className="text-xs text-white/50">
+          {players.map((p) => p.displayName).join(', ')}
+        </span>
+      </div>
+
+      {/* Variants */}
+      {group.mergedNormalizedAnswers.length > 0 && (
+        <div className="text-[11px] italic text-white/35">
+          Originally: {group.mergedNormalizedAnswers.join(', ')}
+        </div>
+      )}
     </div>
   );
 }
@@ -1090,13 +1452,14 @@ function LeaderboardView({ leaderboard, roundNumber, maxRounds, isHost, gameId, 
 
 // --- Badges ---
 
-function Badge({ type }: { type: 'unique' | 'shared' | 'disputed' | 'valid' | 'invalid' }) {
+function Badge({ type }: { type: 'unique' | 'shared' | 'disputed' | 'valid' | 'invalid' | 'rejected' }) {
   const styles: Record<string, { bg: string; border: string; color: string; label: string }> = {
     unique:   { bg: 'rgba(8,145,178,0.2)',   border: 'rgba(34,211,238,0.3)',  color: '#22d3ee', label: 'Unique' },
     shared:   { bg: 'rgba(88,28,135,0.2)',   border: 'rgba(168,85,247,0.3)', color: '#c084fc', label: 'Shared' },
     disputed: { bg: 'rgba(120,53,15,0.2)',   border: 'rgba(245,158,11,0.3)', color: '#fbbf24', label: 'Disputed' },
     valid:    { bg: 'rgba(20,83,45,0.2)',    border: 'rgba(34,197,94,0.3)',  color: '#4ade80', label: 'Valid' },
     invalid:  { bg: 'rgba(127,29,29,0.2)',   border: 'rgba(239,68,68,0.3)',  color: '#f87171', label: 'Invalid' },
+    rejected: { bg: 'rgba(127,29,29,0.2)',   border: 'rgba(239,68,68,0.3)',  color: '#f87171', label: 'Rejected' },
   };
   const s = styles[type];
   return (
