@@ -77,14 +77,10 @@
 
 html {
   background-color: #312C85;
-  height: 100%;
-  overflow: hidden;
 }
 
 body {
   margin: 0;
-  height: 100%;
-  overflow: hidden;
   min-height: 100dvh;
   background: linear-gradient(145.1deg, #312C85 0%, #59168B 50%, #372AAC 100%);
   color: var(--color-text);
