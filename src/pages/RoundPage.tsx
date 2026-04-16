@@ -599,8 +599,11 @@ export default function RoundPage() {
                   </AnimatePresence>
                 </div>
 
-                {/* Input area */}
-                <div className={`relative flex-1 flex items-center w-full bg-black/20 rounded-[1.25rem] p-2 border border-white/5 shadow-inner transition-all duration-300 z-10
+                {/* Input area — form wrapper: browsers respect autoComplete="off" on <form> even when they ignore it on <input> */}
+                <form
+                  autoComplete="off"
+                  onSubmit={(e) => e.preventDefault()}
+                  className={`relative flex-1 flex items-center w-full bg-black/20 rounded-[1.25rem] p-2 border border-white/5 shadow-inner transition-all duration-300 z-10
                   ${currentIsInvalid ? 'focus-within:bg-black/40 focus-within:border-red-500/50' : 'focus-within:bg-black/40 focus-within:border-cyan-400/40'}`}
                 >
                   {/* Target letter block */}
@@ -669,7 +672,7 @@ export default function RoundPage() {
                       </motion.div>
                     )}
                   </AnimatePresence>
-                </div>
+                </form>
               </div>
             </motion.div>
           </AnimatePresence>
