@@ -118,8 +118,11 @@ export default function ReviewPage() {
     const id = setInterval(async () => {
       try {
         const game = await api.getGame(gameId);
-        // status 1 = Starting (countdown), 2 = InRound — game has moved to next round
-        if ((game.status === 1 || game.status === 2) && game.currentRoundIndex >= 0) {
+        // status 2 = InRound — game has moved to next round
+        // status 1 = Starting (countdown) is intentionally excluded: the poll firing
+        // during the 5-second countdown would otherwise skip the countdown overlay.
+        // GameCountdown / RoundStarted SignalR events handle that transition.
+        if (game.status === 2 && game.currentRoundIndex >= 0) {
           const r = game.rounds[game.currentRoundIndex];
           if (r) {
             setCurrentRound({
