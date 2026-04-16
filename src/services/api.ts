@@ -195,6 +195,12 @@ export const api = {
       { method: 'POST', body: JSON.stringify({ playerId, currentCategoryIndex }) },
     )),
 
+  goBackCategory: (gameId: string, playerId: string) =>
+    withRetry(() => request<{ categoryIndex: number }>(
+      `/api/games/${gameId}/rounds/current/review/back`,
+      { method: 'POST', body: JSON.stringify({ playerId }) },
+    )),
+
   updateSettings: (gameId: string, playerId: string, settings: GameSettings) =>
     withRetry(() => request<void>(`/api/games/${gameId}/settings`, {
       method: 'PUT',
