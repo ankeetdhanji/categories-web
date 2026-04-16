@@ -59,6 +59,17 @@ export default function RoundPage() {
   const answersRef = useRef<Record<string, string>>({});
   answersRef.current = answers;
 
+  // Lock document scroll while on this page so the browser can't scroll
+  // the page when the keyboard opens on mobile (restores on unmount)
+  useEffect(() => {
+    document.documentElement.style.overflow = 'hidden';
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.documentElement.style.overflow = '';
+      document.body.style.overflow = '';
+    };
+  }, []);
+
   // Auto-scroll rail + auto-focus input when category changes
   useEffect(() => {
     if (categoryRailRef.current) {
