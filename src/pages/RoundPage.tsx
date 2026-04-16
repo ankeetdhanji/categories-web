@@ -281,7 +281,7 @@ export default function RoundPage() {
 
   return (
     <div
-      className="h-[100dvh] flex flex-col relative overflow-hidden"
+      className="fixed inset-0 flex flex-col overflow-hidden"
       style={{ background: 'linear-gradient(144.77deg, #1e1a4d 0%, #59168b 50%, #312c85 100%)' }}
     >
       {/* Dynamic Background Ambience */}
