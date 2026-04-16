@@ -61,4 +61,6 @@ export const HubEvents = {
   ReviewComplete: 'ReviewComplete',
   PlayerAnswerUpdated: 'PlayerAnswerUpdated',
   GameStateSync: 'GameStateSync',
+  AnswerRejected: 'AnswerRejected',
+  AnswerMerged: 'AnswerMerged',
 } as const;
