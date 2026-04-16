@@ -55,18 +55,28 @@ export default function RoundPage() {
   const [currentCategoryIndex, setCurrentCategoryIndex] = useState(0);
   const categoryRailRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement | null>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
   const submittedRef = useRef(false);
   const answersRef = useRef<Record<string, string>>({});
   answersRef.current = answers;
 
-  // Lock document scroll while on this page so the browser can't scroll
-  // the page when the keyboard opens on mobile (restores on unmount)
+  // Visual Viewport API: reposition + resize the container to match exactly
+  // the visible area above the keyboard. This is the only reliable fix for
+  // iOS Safari where fixed/dvh layouts still shift when the keyboard opens.
   useEffect(() => {
-    document.documentElement.style.overflow = 'hidden';
-    document.body.style.overflow = 'hidden';
+    const vv = window.visualViewport;
+    if (!vv) return;
+    const update = () => {
+      if (!containerRef.current) return;
+      containerRef.current.style.top = `${vv.offsetTop}px`;
+      containerRef.current.style.height = `${vv.height}px`;
+    };
+    vv.addEventListener('resize', update);
+    vv.addEventListener('scroll', update);
+    update();
     return () => {
-      document.documentElement.style.overflow = '';
-      document.body.style.overflow = '';
+      vv.removeEventListener('resize', update);
+      vv.removeEventListener('scroll', update);
     };
   }, []);
 
@@ -292,8 +302,9 @@ export default function RoundPage() {
 
   return (
     <div
-      className="fixed inset-0 flex flex-col overflow-hidden"
-      style={{ background: 'linear-gradient(144.77deg, #1e1a4d 0%, #59168b 50%, #312c85 100%)' }}
+      ref={containerRef}
+      className="fixed left-0 right-0 flex flex-col overflow-hidden"
+      style={{ top: 0, height: '100dvh', background: 'linear-gradient(144.77deg, #1e1a4d 0%, #59168b 50%, #312c85 100%)' }}
     >
       {/* Dynamic Background Ambience */}
       <div className="fixed inset-0 overflow-hidden pointer-events-none z-0">
@@ -622,6 +633,10 @@ export default function RoundPage() {
                       type="text"
                       disabled={submitted}
                       value={currentValue}
+                      autoComplete="off"
+                      autoCorrect="off"
+                      autoCapitalize="none"
+                      spellCheck={false}
                       onChange={(e) => {
                         const newVal = e.target.value;
                         const wasFilled = !!(answers[currentCategory]?.trim());
