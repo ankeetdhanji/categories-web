@@ -148,10 +148,8 @@ export default function RoundPage() {
   });
 
   useSignalREvent(HubEvents.RoundEnded, () => {
-    if (!submittedRef.current) {
-      submittedRef.current = true;
-      api.submitAnswers(gameId ?? '', playerId ?? '', answersRef.current).catch(() => {});
-    }
+    submittedRef.current = true;
+    api.submitAnswers(gameId ?? '', playerId ?? '', answersRef.current).catch(() => {});
     if (gameId && currentRound?.roundNumber) {
       localStorage.removeItem(`draft_${gameId}_${currentRound.roundNumber}`);
     }
