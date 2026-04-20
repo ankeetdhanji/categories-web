@@ -243,6 +243,12 @@ export const api = {
       body: JSON.stringify({ playerId }),
     }),
 
+  reopenLobby: (gameId: string, playerId: string) =>
+    withRetry(() => request<void>(`/api/games/${gameId}/reopen`, {
+      method: 'POST',
+      body: JSON.stringify({ playerId }),
+    })),
+
   getDefaultCategories: () =>
     request<{ categories: string[] }>('/api/categories/defaults'),
 

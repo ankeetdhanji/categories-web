@@ -63,4 +63,5 @@ export const HubEvents = {
   GameStateSync: 'GameStateSync',
   AnswerRejected: 'AnswerRejected',
   AnswerMerged: 'AnswerMerged',
+  LobbyReopened: 'LobbyReopened',
 } as const;
