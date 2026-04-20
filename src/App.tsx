@@ -42,6 +42,7 @@ function useSyncGameState() {
     gameId, playerId, phase,
     setPhase, setPlayers, setFullSettings,
     setCurrentRound, clearSubmittedPlayers, addSubmittedPlayer,
+    setIsAwaitingHost,
   } = useGame();
 
   return async function syncGameState({ rejoinGroup = false } = {}) {
@@ -59,6 +60,8 @@ function useSyncGameState() {
         })),
       );
       setFullSettings(game.settings);
+      const isAwaitingHost = (game as { isAwaitingHost?: boolean }).isAwaitingHost ?? false;
+      setIsAwaitingHost(isAwaitingHost);
       const targetPhase = STATUS_TO_PHASE[game.status] ?? 'home';
       if (targetPhase !== phase) setPhase(targetPhase);
       if (game.status === 2 && game.currentRoundIndex >= 0) {
@@ -90,7 +93,7 @@ function useSyncGameState() {
 
 // Handles global SignalR events that must fire regardless of which page is active.
 function GlobalSignalRHandlers() {
-  const { playerId, players, setPlayers, setHost, removePlayer } = useGame();
+  const { playerId, players, phase, gameId, setPlayers, setHost, removePlayer, returnToLobby, setIsAwaitingHost } = useGame();
   const syncGameState = useSyncGameState();
 
   useSignalREvent(HubEvents.PlayerLeft, (data) => {
@@ -101,6 +104,28 @@ function GlobalSignalRHandlers() {
     const { hostPlayerId: newHostId } = data as { hostPlayerId: string };
     setPlayers(players.map((p) => ({ ...p, isHost: p.id === newHostId })));
     setHost(playerId === newHostId);
+    setIsAwaitingHost(false);
+  });
+
+  useSignalREvent(HubEvents.LobbyReopened, (data) => {
+    if (!gameId || phase === 'home') return; // player already left via "Play Again"
+    const { hostPlayerId, awaitingHost, hostAwaitDeadline, players: raw } = data as {
+      hostPlayerId: string;
+      awaitingHost: boolean;
+      hostAwaitDeadline: string | null;
+      players: Array<{ id: string; displayName: string; isHost: boolean; isGuest: boolean; isSpectating: boolean; totalScore: number }>;
+    };
+
+    const mappedPlayers = raw.map(p => ({
+      id: p.id,
+      displayName: p.displayName,
+      isHost: p.isHost,
+      isGuest: p.isGuest,
+      isSpectating: p.isSpectating,
+      totalScore: p.totalScore,
+    }));
+
+    returnToLobby(hostPlayerId, mappedPlayers, awaitingHost, hostAwaitDeadline ?? null);
   });
 
   useSignalREvent(HubEvents.GameStateSync, () => {
