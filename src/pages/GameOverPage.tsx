@@ -1,7 +1,8 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Trophy, Zap, Star, Crown, Home, Play, Sparkles } from 'lucide-react';
 import { useGame } from '../context/GameContext';
+import { api } from '../services/api';
 
 const AVATAR_GRADIENTS = [
   'linear-gradient(135deg, #51a2ff 0%, #00d3f3 100%)',
@@ -151,11 +152,24 @@ function PodiumCol({
 // --- Main component ---
 
 export default function GameOverPage() {
-  const { finalLeaderboard, players, finalWinnerIds, bonusPerWinner, reset } = useGame();
+  const { finalLeaderboard, players, finalWinnerIds, bonusPerWinner, reset, gameId, playerId } = useGame();
+  const [isReopening, setIsReopening] = useState(false);
 
   const winners = finalLeaderboard.filter((e) => finalWinnerIds.includes(e.playerId));
   const isTie = winners.length > 1;
   const confettiParticles = useMemo(() => generateConfetti(), []);
+
+  async function handleReturnToLobby() {
+    if (!gameId || !playerId || isReopening) return;
+    setIsReopening(true);
+    try {
+      await api.reopenLobby(gameId, playerId);
+      // Phase transition driven by LobbyReopened SignalR event (App.tsx)
+    } catch (err) {
+      console.error('[GameOverPage] reopenLobby failed', err);
+      setIsReopening(false);
+    }
+  }
 
   function handlePlayAgain() {
     reset();
@@ -365,16 +379,22 @@ export default function GameOverPage() {
         >
           <div className="max-w-xl mx-auto flex flex-col sm:flex-row gap-3 pb-4">
             <button
-              onClick={handlePlayAgain}
-              className="flex-1 bg-white/5 text-white/90 py-4 rounded-2xl font-black text-lg border border-white/10 hover:bg-white/10 hover:text-white transition-all flex items-center justify-center gap-2"
+              onClick={handleReturnToLobby}
+              disabled={isReopening}
+              className="flex-1 bg-white/5 text-white/90 py-4 rounded-2xl font-black text-lg border border-white/10 hover:bg-white/10 hover:text-white transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              <Home size={20} className="text-white/60" /> Back to Lobby
+              {isReopening
+                ? <span className="inline-block w-4 h-4 rounded-full border-2 border-white/60 border-t-transparent animate-spin" />
+                : <Home size={20} className="text-white/60" />
+              }
+              Back to Lobby
             </button>
             <motion.button
               onClick={handlePlayAgain}
+              disabled={isReopening}
               whileHover={{ scale: 1.02 }}
               whileTap={{ scale: 0.98 }}
-              className="flex-[1.5] bg-gradient-to-r from-yellow-400 via-orange-500 to-red-500 text-white py-4 rounded-2xl font-black text-xl shadow-[0_8px_30px_rgba(249,115,22,0.4)] border-b-4 border-orange-700 hover:shadow-[0_8px_40px_rgba(249,115,22,0.6)] transition-all flex items-center justify-center gap-2"
+              className="flex-[1.5] bg-gradient-to-r from-yellow-400 via-orange-500 to-red-500 text-white py-4 rounded-2xl font-black text-xl shadow-[0_8px_30px_rgba(249,115,22,0.4)] border-b-4 border-orange-700 hover:shadow-[0_8px_40px_rgba(249,115,22,0.6)] transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <Play size={24} className="fill-white" /> Play Again
             </motion.button>
