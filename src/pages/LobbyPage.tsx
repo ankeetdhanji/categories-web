@@ -34,6 +34,7 @@ export default function LobbyPage() {
     gameId, joinCode, playerId, isHost, players, settings,
     setFullSettings, addPlayer,
     setPhase, setCountdownStartAt, setCountdownInfo, setCurrentRound,
+    isAwaitingHost, hostAwaitDeadline,
   } = useGame();
 
   const [draft, setDraft] = useState<GameSettings | null>(null);
@@ -50,6 +51,7 @@ export default function LobbyPage() {
   const [nextId, setNextId] = useState(0);
   const [showReactions, setShowReactions] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [hostAwaitSecondsLeft, setHostAwaitSecondsLeft] = useState<number | null>(null);
   const [modalDraft, setModalDraft] = useState<GameSettings | null>(null);
   const categoryInputRef = useRef<HTMLInputElement>(null);
   const isFirstModalDraftSet = useRef(true);
@@ -103,6 +105,21 @@ export default function LobbyPage() {
       })
       .catch(console.error);
   }, [gameId, playerId]);
+
+  // Countdown for awaiting-host banner
+  useEffect(() => {
+    if (!isAwaitingHost || !hostAwaitDeadline) {
+      setHostAwaitSecondsLeft(null);
+      return;
+    }
+    const tick = () => {
+      const secs = Math.max(0, Math.ceil((new Date(hostAwaitDeadline).getTime() - Date.now()) / 1000));
+      setHostAwaitSecondsLeft(secs);
+    };
+    tick();
+    const id = setInterval(tick, 1000);
+    return () => clearInterval(id);
+  }, [isAwaitingHost, hostAwaitDeadline]);
 
   // Fetch system defaults + host's saved categories
   useEffect(() => {
@@ -314,6 +331,26 @@ export default function LobbyPage() {
             <span className="text-sm font-bold uppercase tracking-[1.25px] text-white/90">Room Ready</span>
           </div>
         </div>
+
+        {/* Awaiting host banner */}
+        {isAwaitingHost && (
+          <motion.div
+            initial={{ opacity: 0, y: -8 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="rounded-2xl px-5 py-3 mb-4 flex items-center gap-3"
+            style={{ background: 'rgba(245,158,11,0.12)', border: '1px solid rgba(245,158,11,0.3)' }}
+          >
+            <span className="inline-block w-3 h-3 rounded-full border-2 border-amber-400 border-t-transparent animate-spin flex-shrink-0" />
+            <div>
+              <p className="text-sm font-bold text-amber-300">Waiting for host to return...</p>
+              <p className="text-xs text-amber-200/60">
+                {hostAwaitSecondsLeft !== null
+                  ? `Host has ${hostAwaitSecondsLeft}s to return, or a new host will be selected.`
+                  : 'A new host will be selected shortly.'}
+              </p>
+            </div>
+          </motion.div>
+        )}
 
         {/* Room code card */}
         <motion.div
@@ -622,7 +659,7 @@ export default function LobbyPage() {
             {isHost ? (
               <motion.button
                 onClick={handleStart}
-                disabled={starting || players.length < 1}
+                disabled={starting || players.length < 1 || isAwaitingHost}
                 className="flex-1 h-16 rounded-2xl font-black text-2xl text-white flex items-center justify-center gap-2 transition-all disabled:opacity-50 disabled:cursor-not-allowed overflow-hidden relative group shadow-lg hover:shadow-2xl bg-gradient-to-r from-cyan-400 to-blue-500"
                 whileHover={{ scale: 1.02 }}
                 whileTap={{ scale: 0.97 }}

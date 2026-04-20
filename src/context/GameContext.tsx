@@ -50,6 +50,8 @@ interface GameState {
   finalWinnerIds: string[];
   bonusPerWinner: number;
   finalLeaderboard: FinalLeaderboardEntry[];
+  isAwaitingHost: boolean;
+  hostAwaitDeadline: string | null;
 }
 
 interface GameContextValue extends GameState {
@@ -70,6 +72,8 @@ interface GameContextValue extends GameState {
   setLeaderboard: (entries: LeaderboardEntry[]) => void;
   setReviewRoundNumber: (n: number) => void;
   setFinalResult: (winnerIds: string[], bonus: number, finalLeaderboard: FinalLeaderboardEntry[]) => void;
+  returnToLobby: (hostPlayerId: string, players: Player[], awaitingHost: boolean, hostAwaitDeadline: string | null) => void;
+  setIsAwaitingHost: (value: boolean) => void;
   reset: () => void;
 }
 
@@ -94,6 +98,8 @@ const initialState: GameState = {
   finalWinnerIds: [],
   bonusPerWinner: 0,
   finalLeaderboard: [],
+  isAwaitingHost: false,
+  hostAwaitDeadline: null,
 };
 
 const GameContext = createContext<GameContextValue | null>(null);
@@ -131,6 +137,26 @@ export function GameProvider({ children }: { children: ReactNode }) {
     setLeaderboard: (leaderboard) => setState((s) => ({ ...s, leaderboard })),
     setReviewRoundNumber: (reviewRoundNumber) => setState((s) => ({ ...s, reviewRoundNumber })),
     setFinalResult: (finalWinnerIds, bonusPerWinner, finalLeaderboard) => setState((s) => ({ ...s, finalWinnerIds, bonusPerWinner, finalLeaderboard })),
+    returnToLobby: (hostPlayerId, freshPlayers, awaitingHost, deadline) =>
+      setState(s => ({
+        ...s,
+        phase: 'lobby',
+        isHost: s.playerId === hostPlayerId,
+        players: freshPlayers,
+        isAwaitingHost: awaitingHost,
+        hostAwaitDeadline: deadline,
+        countdownStartAt: null,
+        countdownLetter: null,
+        countdownRoundNumber: null,
+        currentRound: null,
+        submittedPlayerIds: [],
+        leaderboard: [],
+        reviewRoundNumber: null,
+        finalWinnerIds: [],
+        bonusPerWinner: 0,
+        finalLeaderboard: [],
+      })),
+    setIsAwaitingHost: (value) => setState(s => ({ ...s, isAwaitingHost: value })),
     reset: () => setState(initialState),
   };
 
