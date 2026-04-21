@@ -6,6 +6,7 @@ import { useSignalREvent } from '../hooks/useSignalR';
 import { api, type RoundReviewResult, type AnswerEntry, type LeaderboardEntry, type FinalLeaderboardEntry, type MergeGroup } from '../services/api';
 import { HubEvents } from '../services/signalr';
 import { useConnectionStatus } from '../hooks/useConnectionStatus';
+import { useToast } from '../context/ToastContext';
 
 // Deterministic color per player ID (cycles through a palette)
 const AVATAR_COLORS = [
@@ -49,6 +50,7 @@ export default function ReviewPage() {
   const goingBackRef = useRef(false);
   const { isReconnecting } = useConnectionStatus();
   const reconnectingRef = useRef(false);
+  const addToast = useToast();
 
   // Host moderation state
   const [selectedAnswerKeys, setSelectedAnswerKeys] = useState<Set<string>>(new Set());
@@ -94,10 +96,11 @@ export default function ReviewPage() {
       .catch((err: unknown) => {
         console.error('getRoundResults failed:', err);
         setLoadError(err instanceof Error ? err.message : String(err));
+        addToast("Couldn't load results. Tap retry to try again.");
       });
   // reviewRoundNumber is set by LeaderboardUpdated (~2s after RoundEnded). Re-fetching when it
   // arrives guarantees we read all auto-submitted answers that committed during the grace period.
-  }, [gameId, roundToFetch, reviewRoundNumber]);
+  }, [gameId, roundToFetch, reviewRoundNumber]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Re-fetch review data on reconnect to restore category index and dispute state
   useEffect(() => {
@@ -211,6 +214,13 @@ export default function ReviewPage() {
   useSignalREvent(HubEvents.DisputeResolved, (data) => {
     const { disputeId, isValid } = data as { disputeId: string; isValid: boolean };
     setResolvedDisputes((prev) => ({ ...prev, [disputeId]: isValid }));
+  });
+
+  // SignalR: disputes flagged — re-fetch to ensure dispute badges appear immediately (Gap #4)
+  useSignalREvent(HubEvents.DisputeFlagged, (data) => {
+    const { roundNumber } = data as { roundNumber: number };
+    if (roundNumber !== roundToFetch || !gameId) return;
+    api.getRoundResults(gameId, roundNumber).then(setResults).catch(() => {});
   });
 
   // SignalR: host rejected/unrejected an answer
@@ -332,7 +342,11 @@ export default function ReviewPage() {
     try {
       await api.unmergeAnswers(gameId, playerId, mergeGroupId);
     } catch {
-      // can't easily revert without re-fetching; silently fail
+      // Re-fetch to restore accurate server state (Gap #10)
+      addToast('Unmerge failed. Refreshing...');
+      if (roundToFetch) {
+        api.getRoundResults(gameId, roundToFetch).then(setResults).catch(() => {});
+      }
     } finally {
       setModerationPending(false);
     }
@@ -380,6 +394,7 @@ export default function ReviewPage() {
   async function handleDisputeVote(entry: AnswerEntry, isValid: boolean) {
     if (!gameId || !reviewRoundNumber || !playerId || !entry.disputeId) return;
     if (myDisputeVotes[entry.disputeId] !== undefined) return; // already voted
+    if (resolvedDisputes[entry.disputeId] !== undefined) return; // dispute already resolved (Gap #9)
     setMyDisputeVotes((prev) => ({ ...prev, [entry.disputeId!]: isValid }));
     try {
       await api.castDisputeVote(gameId, reviewRoundNumber, entry.disputeId, playerId, isValid);
@@ -389,6 +404,7 @@ export default function ReviewPage() {
         delete next[entry.disputeId!];
         return next;
       });
+      addToast("Vote couldn't be cast.");
     }
   }
 
