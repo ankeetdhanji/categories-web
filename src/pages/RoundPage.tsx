@@ -5,6 +5,7 @@ import { useGame, type RoundInfo } from '../context/GameContext';
 import { useSignalREvent } from '../hooks/useSignalR';
 import { api } from '../services/api';
 import { notifyAnswerPresence, HubEvents } from '../services/signalr';
+import { useToast } from '../context/ToastContext';
 
 const AVATAR_GRADIENTS = [
   'linear-gradient(135deg, #51a2ff 0%, #00d3f3 100%)',
@@ -44,6 +45,7 @@ export default function RoundPage() {
     setLeaderboard, setReviewRoundNumber,
   } = useGame();
   const isCountdown = phase === 'countdown';
+  const addToast = useToast();
 
   const [answers, setAnswers] = useState<Record<string, string>>({});
   const [answerPresence, setAnswerPresence] = useState<Record<string, string[]>>({});
@@ -215,7 +217,10 @@ export default function RoundPage() {
       api.markDone(gameId, playerId).catch(() => {});
     } catch {
       submittedRef.current = false;
-      if (!auto) setSubmitted(false);
+      if (!auto) {
+        setSubmitted(false);
+        addToast("Couldn't submit answers. Tap to retry.");
+      }
     }
   }
 
@@ -232,6 +237,7 @@ export default function RoundPage() {
     } catch {
       submittedRef.current = false;
       setSubmitted(false);
+      addToast("Couldn't mark you as done.");
     }
   }
 

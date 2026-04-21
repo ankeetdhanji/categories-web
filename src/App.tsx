@@ -1,5 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { GameProvider, useGame, type GamePhase } from './context/GameContext';
+import { ToastProvider, useToast } from './context/ToastContext';
+import { ToastList } from './components/ToastList';
 import HomePage from './pages/HomePage';
 import LobbyPage from './pages/LobbyPage';
 import RoundPage from './pages/RoundPage';
@@ -93,8 +95,9 @@ function useSyncGameState() {
 
 // Handles global SignalR events that must fire regardless of which page is active.
 function GlobalSignalRHandlers() {
-  const { playerId, players, phase, gameId, setPlayers, setHost, removePlayer, returnToLobby, setIsAwaitingHost } = useGame();
+  const { playerId, players, phase, gameId, setPlayers, setHost, removePlayer, returnToLobby, setIsAwaitingHost, setPhase } = useGame();
   const syncGameState = useSyncGameState();
+  const addToast = useToast();
 
   useSignalREvent(HubEvents.PlayerLeft, (data) => {
     removePlayer((data as { playerId: string }).playerId);
@@ -130,6 +133,11 @@ function GlobalSignalRHandlers() {
 
   useSignalREvent(HubEvents.GameStateSync, () => {
     syncGameState();
+  });
+
+  useSignalREvent(HubEvents.GameAbandoned, () => {
+    addToast('All players have disconnected. The game has ended.');
+    setPhase('home');
   });
 
   return null;
@@ -194,13 +202,16 @@ function DisconnectedBanner() {
 
 export default function App() {
   return (
-    <GameProvider>
-      <GlobalSignalRHandlers />
-      <ReconnectBanner />
-      <DisconnectedBanner />
-      <ErrorBoundary>
-        <GameRouter />
-      </ErrorBoundary>
-    </GameProvider>
+    <ToastProvider>
+      <GameProvider>
+        <GlobalSignalRHandlers />
+        <ReconnectBanner />
+        <DisconnectedBanner />
+        <ToastList />
+        <ErrorBoundary>
+          <GameRouter />
+        </ErrorBoundary>
+      </GameProvider>
+    </ToastProvider>
   );
 }
