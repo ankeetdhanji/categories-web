@@ -50,6 +50,7 @@ export default function RoundPage() {
   const [answers, setAnswers] = useState<Record<string, string>>({});
   const [answerPresence, setAnswerPresence] = useState<Record<string, string[]>>({});
   const [submitted, setSubmitted] = useState(false);
+  const [canUndo, setCanUndo] = useState(false);
   const [secondsLeft, setSecondsLeft] = useState<number | null>(null);
   const [countdownSeconds, setCountdownSeconds] = useState(5);
   const [endingRound, setEndingRound] = useState(false);
@@ -145,11 +146,16 @@ export default function RoundPage() {
   });
 
   useSignalREvent(HubEvents.PlayerDone, (data) => {
-    const { playerId: doneId } = data as { playerId: string };
-    setDonePlayerIds((prev) => prev.includes(doneId) ? prev : [...prev, doneId]);
+    const { playerId: doneId, isDone } = data as { playerId: string; isDone?: boolean };
+    if (isDone === false) {
+      setDonePlayerIds((prev) => prev.filter((id) => id !== doneId));
+    } else {
+      setDonePlayerIds((prev) => prev.includes(doneId) ? prev : [...prev, doneId]);
+    }
   });
 
   useSignalREvent(HubEvents.RoundEnded, () => {
+    setCanUndo(false);
     submittedRef.current = true;
     api.submitAnswers(gameId ?? '', playerId ?? '', answersRef.current).catch(() => {});
     if (gameId && currentRound?.roundNumber) {
@@ -196,6 +202,7 @@ export default function RoundPage() {
     setAnswers({});
     setAnswerPresence({});
     setSubmitted(false);
+    setCanUndo(false);
     submittedRef.current = false;
     setDonePlayerIds([]);
     setCurrentCategoryIndex(0);
@@ -214,7 +221,8 @@ export default function RoundPage() {
       // Signal done so the round ends immediately when all players have submitted,
       // rather than waiting for the server timer. Errors are swallowed since the
       // server timer is the authoritative ender in timed mode.
-      api.markDone(gameId, playerId).catch(() => {});
+      const result = await api.markDone(gameId, playerId).catch(() => null);
+      if (result && !result.allDone) setCanUndo(true);
     } catch {
       submittedRef.current = false;
       if (!auto) {
@@ -230,7 +238,8 @@ export default function RoundPage() {
     setSubmitted(true);
     try {
       await api.submitAnswers(gameId, playerId, answers);
-      await api.markDone(gameId, playerId);
+      const result = await api.markDone(gameId, playerId);
+      if (!result.allDone) setCanUndo(true);
       if (currentRound?.roundNumber) {
         localStorage.removeItem(`draft_${gameId}_${currentRound.roundNumber}`);
       }
@@ -238,6 +247,18 @@ export default function RoundPage() {
       submittedRef.current = false;
       setSubmitted(false);
       addToast("Couldn't mark you as done.");
+    }
+  }
+
+  async function handleUndoDone() {
+    if (!gameId || !playerId) return;
+    try {
+      await api.unmarkDone(gameId, playerId);
+      submittedRef.current = false;
+      setSubmitted(false);
+      setCanUndo(false);
+    } catch {
+      addToast("Couldn't undo — the round may have already ended.");
     }
   }
 
@@ -727,7 +748,17 @@ export default function RoundPage() {
 
             {/* Right: submit button */}
             {isTimedMode ? (
-              submitted ? (
+              submitted && canUndo ? (
+                <div className="flex items-center gap-2 pr-1">
+                  <span className="text-white/50 text-xs font-bold">Waiting…</span>
+                  <button
+                    onClick={handleUndoDone}
+                    className="px-4 py-2.5 rounded-xl bg-white/10 border border-white/20 text-white/80 text-xs font-black uppercase tracking-wider hover:bg-white/20 transition-all"
+                  >
+                    Undo
+                  </button>
+                </div>
+              ) : submitted ? (
                 <div className="px-4 py-2.5 rounded-xl flex items-center gap-2 text-white/60 text-xs font-bold">
                   <BounceDots /> Waiting…
                 </div>
@@ -745,6 +776,16 @@ export default function RoundPage() {
                   <Send size={14} />
                 </motion.button>
               )
+            ) : submitted && canUndo ? (
+              <div className="flex items-center gap-2 pr-1">
+                <span className="text-white/50 text-xs font-bold">Waiting…</span>
+                <button
+                  onClick={handleUndoDone}
+                  className="px-4 py-2.5 rounded-xl bg-white/10 border border-white/20 text-white/80 text-xs font-black uppercase tracking-wider hover:bg-white/20 transition-all"
+                >
+                  Undo
+                </button>
+              </div>
             ) : (
               <motion.button
                 onClick={handleDone}
