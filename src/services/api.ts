@@ -163,10 +163,16 @@ export const api = {
     })),
 
   markDone: (gameId: string, playerId: string) =>
-    withRetry(() => request<void>(`/api/games/${gameId}/rounds/current/done`, {
+    withRetry(() => request<{ allDone: boolean }>(`/api/games/${gameId}/rounds/current/done`, {
       method: 'POST',
       body: JSON.stringify({ playerId }),
     })),
+
+  unmarkDone: (gameId: string, playerId: string) =>
+    request<void>(`/api/games/${gameId}/rounds/current/done`, {
+      method: 'DELETE',
+      body: JSON.stringify({ playerId }),
+    }),
 
   forceEndRound: (gameId: string, playerId: string) =>
     request<void>(`/api/games/${gameId}/rounds/current/end`, {
